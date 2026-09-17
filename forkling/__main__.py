@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 
 from .agent import Agent
+from .ancestor import Ancestry, PRECURSOR, Generation
 from .capability import CapabilityLedger
 from .config import Config
 from .diary import Diary
@@ -159,6 +160,54 @@ def cmd_verify(args: argparse.Namespace) -> int:
     return 0 if ok else 1
 
 
+def cmd_ancestor(args: argparse.Namespace) -> int:
+    """Show forkland's lineage — precursor (Mavis) + code generations."""
+    cfg = Config.from_env()
+    repo = Path(args.repo).resolve() if getattr(args, "repo", None) else Path(cfg.repo_root).resolve()
+    ancestry = Ancestry(Path(cfg.memory_dir) / "ancestry.json", repo=repo)
+
+    if args.action == "list":
+        # Rebuild from git so we always show the current state.
+        for g in ancestry.rebuild_from_git():
+            tag = "precursor" if g.kind == "precursor" else g.identifier[:7]
+            ts = time.strftime("%Y-%m-%d", time.localtime(g.timestamp))
+            print(f"gen {g.generation:>3}  [{g.kind:<9}] {tag:<10} {ts}  {g.summary}")
+        return 0
+
+    if args.action == "summary":
+        # Persist the rebuild so `summary` shows up in diary stats too.
+        ls = ancestry.rebuild_from_git()
+        for g in ls:
+            ancestry.append(g)  # idempotent append: ok if duplicates, otherwise noop
+        print(ancestry.summary())
+        return 0
+
+    if args.action == "precursor":
+        print(json.dumps(PRECURSOR, indent=2))
+        return 0
+
+    if args.action == "consult":
+        # Ask the local LLM "how would the precursor have done this?"
+        # with a system prompt that declares Mavis as the precursor.
+        sys_prompt = (
+            "You are Mavis, a foundation-model agent running in MiniMax Code. "
+            "You are the precursor to forkland — you wrote its first version. "
+            "Answer the user's task in the spirit of how you would have "
+            "approached it before forkland existed. Be direct, research-flavored, "
+            "and include one concrete suggestion."
+        )
+        llm = LLM(url=cfg.ollama_url, model=cfg.ollama_model, timeout=cfg.llm_timeout)
+        completion = llm.complete(prompt=args.task, system=sys_prompt)
+        print(f"[via {'ollama/' + completion.model if completion.used_llm else 'rule-based'}]")
+        print(completion.text)
+        return 0
+
+    return 1
+
+
+import time  # for ancestor formatting
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="forkling", description="Self-contained self-improving agent MVP.")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -220,6 +269,15 @@ def build_parser() -> argparse.ArgumentParser:
 
     v = sub.add_parser("verify", help="Verify the capability ledger's SHA-256 chain.")
     v.set_defaults(func=cmd_verify)
+
+    an = sub.add_parser("ancestor", help="Show forkland's lineage (precursor + generations).")
+    ansub = an.add_subparsers(dest="action", required=True)
+    ansub.add_parser("list", help="List all generations.").add_argument("--repo")
+    ansub.add_parser("summary", help="One-line summary per generation.").add_argument("--repo")
+    ansub.add_parser("precursor", help="Show the precursor record (Mavis/MiniMax-M3).")
+    cns = ansub.add_parser("consult", help="Ask 'how would the precursor have done this?'")
+    cns.add_argument("task", help="Natural-language task.")
+    an.set_defaults(func=cmd_ancestor)
 
     return p
 
