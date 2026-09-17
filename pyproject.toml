@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dogfood"
+version = "0.1.0"
+description = "Self-contained, self-improving AI agent MVP. Lives in a repo, plans/builds/tests/deploys/rolls back improvements to itself, runs on local Ollama with no paid APIs."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "Dogfood Contributors" }]
+keywords = ["agent", "self-improving", "dogfooding", "local-llm", "ollama"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Software Development",
+  "Operating System :: OS Independent",
+]
+dependencies = []  # stdlib only — true MVP, runs anywhere Python runs
+
+[project.optional-dependencies]
+dev = ["pytest>=7"]
+
+[project.scripts]
+dogfood = "dogfood.__main__:main"
+pup = "dogfood.__main__:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["dogfood*"]

@@ -1,0 +1,49 @@
+"""Configuration. All settings are env-overridable.
+
+Keep this tiny on purpose — the agent should boot with zero config.
+"""
+
+from __future__ import annotations
+
+import os
+from dataclasses import dataclass
+
+
+def _env(name: str, default: str) -> str:
+    v = os.environ.get(name)
+    return v if v is not None and v != "" else default
+
+
+def _env_int(name: str, default: int) -> int:
+    raw = os.environ.get(name)
+    if raw is None or raw == "":
+        return default
+    try:
+        return int(raw)
+    except ValueError:
+        return default
+
+
+@dataclass
+class Config:
+    repo_root: str = "."                 # working directory of the agent
+    memory_dir: str = "~/.dogfood"       # where persistent state lives
+    ollama_url: str = "http://localhost:11434"
+    ollama_model: str = "qwen3:4b"       # any local model works; small is fine
+    llm_timeout: int = 120               # seconds for one completion
+    max_steps: int = 20                   # hard cap on plan length per run
+    test_command: str = "pytest -q"      # gate that decides ship-vs-rollback
+    stream: bool = True                  # stream Ollama responses
+
+    @classmethod
+    def from_env(cls) -> "Config":
+        return cls(
+            repo_root=_env("DOGFOOD_REPO", "."),
+            memory_dir=_env("DOGFOOD_MEMORY", "~/.dogfood"),
+            ollama_url=_env("DOGFOOD_OLLAMA_URL", "http://localhost:11434"),
+            ollama_model=_env("DOGFOOD_OLLAMA_MODEL", "qwen3:4b"),
+            llm_timeout=_env_int("DOGFOOD_LLM_TIMEOUT", 120),
+            max_steps=_env_int("DOGFOOD_MAX_STEPS", 20),
+            test_command=_env("DOGFOOD_TEST", "pytest -q"),
+            stream=_env("DOGFOOD_STREAM", "1") not in ("0", "false", "False"),
+        )

@@ -1,0 +1,59 @@
+name: dogfood
+
+# The agent dogfoods itself on every push.
+# It reads its own source, proposes a tiny safe change, runs the test suite,
+# and either commits+tags or stays put. The gate is `pytest -q`. No paid APIs.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write  # required for the self-improve step to push back
+
+jobs:
+  test:
+    name: pytest
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install (stdlib-only)
+        run: |
+          python -m pip install -e .
+          python -m pip install pytest
+      - name: Run tests
+        run: python -m pytest -q
+
+  dogfood:
+    name: dogfood self-improve
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install
+        run: |
+          python -m pip install -e .
+          python -m pip install pytest
+      - name: dogfood self-improve
+        env:
+          DOGFOOD_REPO: ${{ github.workspace }}
+          # No Ollama in CI by default; rule-based fallback still runs the
+          # full ship/rollback loop. Set DOGFOOD_OLLAMA_URL to enable.
+          DOGFOOD_OLLAMA_URL: "http://127.0.0.1:1"
+        run: python scripts/self_improve.py
+      - name: Push the dogfood commit (if any)
+        run: |
+          git push origin HEAD:main
+        # The script only commits when tests pass; if it didn't commit, this
+        # is a no-op push.
