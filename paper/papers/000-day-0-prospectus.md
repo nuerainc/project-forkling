@@ -9,10 +9,23 @@
 
 ## Abstract
 
-We announce a 365-day research cycle for **forkland**, a self-contained
-self-improving AI agent whose evolutionary substrate is the git history
-of its own source code. The cycle begins at 2026-09-16 21:00 MDT and
-ends at 2026-09-16 21:00 MDT, 2027. Across eight named stages we will:
+The Darwin Gödel Machine (DGM) is the current high-water mark for
+self-improving AI agents: it edits its own source code at inference
+time, scores the edits with a benchmark-derived fitness function, and
+keeps the best. **forkland** takes a different bet. It treats the git
+history of its own repository — not the agent's in-memory state — as
+the evolutionary substrate. Every patch is `git commit`-able, every
+selection event is a `pytest` run, every rollback is a `git checkout`,
+every parallel experiment is a `git branch`. The four primitives of
+a Darwinian process map onto four git operations that already exist
+in every developer's toolchain. This makes the agent's full
+evolutionary history **trivially auditable**, **trivially replayable**,
+and **trivially sharable**, with no hidden in-memory lineage and no
+special-purpose substrate to maintain.
+
+We announce a **365-day research cycle** for forkland that begins at
+2026-09-16 21:00 MDT and ends at 2026-09-16 21:00 MDT, 2027. Across
+eight named stages we will:
 
 1. Run the agent continuously on a local Ollama instance (qwen3:4b)
    with no paid APIs and no third-party runtime dependencies.
@@ -63,6 +76,112 @@ branch model lets us run parallel evolutionary experiments
 side-by-side without coordination. The SHA-256-chained ledger records
 every accepted capability acquisition as a discrete evolutionary
 event.
+
+## 2. Related Work
+
+The git-as-substrate thesis sits at the intersection of three
+literatures. We position forkland against each.
+
+### 2.1 Darwin Gödel Machine and self-modifying agents
+
+The **Darwin Gödel Machine** (DGM) [Zhang et al., 2025] is the
+nearest published neighbor. DGM edits the agent's own Python source
+at inference time, evaluates candidate edits against a benchmark
+(SWE-bench), and keeps the best. Forkland differs on three axes:
+
+| Axis | DGM | forkland |
+|---|---|---|
+| Substrate | in-memory source edits | git history (the working tree) |
+| Selection | benchmark score | `pytest -q` (fitness gate on the actual code) |
+| Auditability | requires post-hoc lineage reconstruction | `git log` *is* the lineage |
+| Parallelism | single agent, in-memory tree | `git branch` per experiment |
+| Replay | must reconstruct the edit DAG | `git checkout <sha>` + run |
+
+The distinction matters because selection in forkland is **the
+agent's own test suite**, not a benchmark. The agent has direct
+incentive to make its own tests pass — and direct disincentive to
+"game" the benchmark. That closes a known DGM failure mode where
+edits that improve the score but degrade general capability persist
+in the lineage. In forkland, such an edit would fail the agent's own
+regression tests and be rolled back.
+
+**Gödel machines** [Schmidhuber, 2003] are the formal ancestor: a
+self-referential system that proves a code rewrite will improve its
+own utility before applying it. Forkland does not require proofs —
+its selection mechanism is empirical (`pytest`), not deductive —
+but the spirit is the same: the system edits itself, observes the
+consequence, and keeps what works.
+
+### 2.2 Genetic programming and evolutionary computation
+
+Git-as-substrate connects to the **genetic programming** tradition
+[Koza, 1992]: the genotype is the source code, the fitness function
+is task success, the variation operator is mutation/crossover, and
+selection is survival-of-the-fittest. Forkland's variation operator
+is **unique-match patch** (`old` → `new`), which is a constrained
+mutation; the **multi-objective fitness** in `forkling/evolution.py`
+is a hand-crafted combination of capability-ledger coverage,
+graveyard penalty, and Shannon-entropy file diversity.
+
+Where classical GP tracks lineages in bespoke data structures (e.g.
+tangled graphs in `DEAP`), forkland's lineage is **the git log**. We
+get phylogenetic replay, ancestor-of comparison, and diff-replay for
+free. The cost is that our variation operator is text-edit-shaped
+rather than tree-shaped, which limits what kinds of mutations are
+easy to express — but the agent can compose many text edits into a
+single commit, which is structurally similar to a tree-edit.
+
+### 2.3 Self-play RL on agent scaffolding
+
+A growing family of work — **AlphaEvolve** [DeepMind, 2025],
+**FunSearch** [Romera-Paredes et al., 2024], **ADAS** [Hu et al.,
+2024] — evolves agent scaffolding (prompts, tool palettes, control
+flows) using LLMs as variation operators and benchmark scores as
+selection. Forkland shares the variation story (LLM proposes an
+edit) but differs on selection: rather than scoring against an
+external benchmark, it scores against its own running test suite.
+This makes the agent's evolution **task-relative** (good at being
+forkland) rather than **benchmark-relative** (good at SWE-bench).
+
+The "scaffolding evolution" literature also evolves *prompts* rather
+than *code*. Forkland edits code; prompts are inputs to the LLM
+inside the agent loop, not the agent itself.
+
+### 2.4 Self-modifying code and quines
+
+Long before LLM agents, the **self-modifying code** and **quine**
+literatures showed that a program can rewrite itself. Forkland is
+not in this lineage directly — its variations are LLM-proposed
+patches, not hand-written self-rewrites — but the substrate
+similarity is real: a git repository is a persistent, hash-addressed
+self-description.
+
+### 2.5 Lineage tracking and replay
+
+The **replay** module (`forkling/replay.py`) operationalizes
+phylogenetic comparison: given two ancestor commits, run the same
+task on both, diff the results. This is a cousin of **OpenAI's
+trace tooling** and **Anthropic's agent evaluation harnesses**,
+but the substrate is git, not a proprietary trace format. We
+emphasize this for reproducibility: any researcher with the
+repository at a given SHA can re-run the agent and verify the
+result, with no special tooling.
+
+### 2.6 What this paper is not
+
+We are not claiming:
+
+- That forkland is a frontier agent (it is small, slow, runs on one
+  qwen3:4b model on one machine — that is the point).
+- That git is the *only* possible substrate (DGM's in-memory
+  approach has complementary strengths).
+- That we beat DGM on any specific benchmark (we are not
+  benchmarking yet; the first comparison is the cross-fork replay
+  study at day 30).
+
+The claim is narrower: **for a self-improving agent that needs to
+be auditable, replayable, shareable, and reproducible by anyone with
+git, the substrate is git.**
 
 ## 2. Starting state (t=0)
 
