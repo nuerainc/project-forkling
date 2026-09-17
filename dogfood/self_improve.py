@@ -164,22 +164,39 @@ class SelfImprover:
         return tools.safe_path(self.agent.root, self.SAFE_FILES[-1])
 
     def _propose(self, path: str, source: str, goal: str) -> dict:
-        prompt = f"Goal: {goal or 'Find one tiny, safe improvement.'}\n\nFile: {path}\n\n```python\n{source[:6000]}\n```"
+        # Keep the prompt small — qwen3 spends forever thinking over big inputs.
+        head = source[:2500]
+        tail = source[-1500:] if len(source) > 4000 else ""
+        excerpt = head + ("\n...\n" + tail if tail else "")
+        prompt = f"Goal: {goal or 'Find one tiny, safe improvement.'}\n\nFile: {path}\n\n```python\n{excerpt}\n```\n\nRespond with JSON only."
         completion = self.agent.llm.complete(prompt=prompt, system=SYSTEM_PROMPT)
         if completion.used_llm:
             parsed = _try_json(completion.text)
-            if parsed:
+            if parsed and parsed.get("kind") != "noop":
                 return parsed
-        # Rule-based fallback: append a one-line comment if the file does not
-        # already end with our marker. Otherwise noop. Always safe.
+            # If LLM said noop OR parse failed, fall through to rule-based.
+        # Rule-based fallback: append a one-line marker using a UNIQUE
+        # old-substring so the patch always applies cleanly. We anchor on the
+        # last two lines of the file (after rstrip), which by construction
+        # appear exactly once.
         marker = "# dogfood: reviewed\n"
-        if source.rstrip().endswith("# dogfood: reviewed"):
+        if "# dogfood: reviewed" in source:
             return {"kind": "noop", "reason": "already reviewed"}
+        tail = source.rstrip()
+        lines = tail.split("\n")
+        if len(lines) < 2:
+            anchor = tail
+            replacement = tail + "\n" + marker
+        else:
+            anchor = lines[-2] + "\n" + lines[-1]
+            replacement = anchor + "\n" + marker
+        if source.count(anchor) != 1:
+            return {"kind": "noop", "reason": f"no unique anchor in {path}"}
         return {
             "kind": "patch",
             "path": path,
-            "old": source.rstrip()[-1:],
-            "new": source.rstrip()[-1:] + ("\n" if not source.endswith("\n\n") else "") + marker,
+            "old": anchor,
+            "new": replacement,
         }
 
 

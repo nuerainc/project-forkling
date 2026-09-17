@@ -70,6 +70,10 @@ class LLM:
 
     def _call_ollama(self, prompt: str, system: str | None, stream: bool) -> str:
         body = {"model": self.model, "prompt": prompt, "stream": stream}
+        # qwen3 (and other "thinking" models) emit huge "thinking" blocks by
+        # default that dwarf the actual answer. Disable when supported.
+        if self._supports_think_option():
+            body["think"] = False
         if system:
             body["system"] = system
         req = urllib.request.Request(
@@ -92,6 +96,8 @@ class LLM:
 
     def _stream_ollama(self, prompt: str, system: str | None) -> Iterable[str]:
         body = {"model": self.model, "prompt": prompt, "stream": True}
+        if self._supports_think_option():
+            body["think"] = False
         if system:
             body["system"] = system
         req = urllib.request.Request(
@@ -110,6 +116,11 @@ class LLM:
                     yield piece
                 if obj.get("done"):
                     return
+
+    def _supports_think_option(self) -> bool:
+        # Heuristic: qwen3 family supports the `think` toggle. Keeping this
+        # narrowly scoped avoids surprising other models.
+        return "qwen3" in self.model.lower()
 
     # ---- rule-based fallback ----------------------------------------------
 
@@ -133,3 +144,4 @@ class LLM:
             "steps": [],
             "note": "rule-based fallback: planner will use heuristic",
         })
+# dogfood: reviewed
