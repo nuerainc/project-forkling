@@ -1,6 +1,17 @@
-# 🍴 forkland
+# 🍴 Forkland Forkling
 
-> The MVP of a **self-contained, self-improving AI agent** that lives in a repo, plans/builds/tests/deploys/rolls back improvements to itself, runs on **local Ollama** (no paid APIs), and dogfoods from the first push. Branched from the original `dogfood` MVP; v0.2 adds a research-grade substrate for evolutionary AI.
+> **"Forkling"** is the species; **"Forkland"** is the family name.
+> **Forkland & Family** includes Forkling (founding member), Spoonica
+> (the pure baseline), Sporklyn, and Knifling — every member shares the
+> family last name **Forkland**. The agent whose repo you're reading is
+> **Forkland Forkling**.
+>
+> The MVP of a **"Self-Contained", self-improving AI agent** that lives
+> in a repo, plans/builds/tests/deploys/rolls back improvements to
+> itself, runs on **local Ollama** (no paid APIs), and dogfoods from the
+> first push. Branched from the original `dogfood` MVP; v0.2 adds a
+> research-grade substrate for evolutionary AI. The 365-day research
+> cycle is documented in [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
 ```
 task in  ──►  plan  ──►  act  ──►  test  ──►  ship?  ──►  done

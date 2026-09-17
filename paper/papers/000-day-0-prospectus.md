@@ -1,4 +1,10 @@
-# 000-day-0-prospectus — Year-1 research cycle for forkland
+# 000-day-0-prospectus — Year-1 research cycle for Forkland Forkling
+
+> **Naming.** "Forkling" is the species; "Forkland" is the family last
+> name. The agents in this lineage — Forkling, Spoonica, Sporklyn,
+> Knifling — share the family name Forkland. The full family is
+> **Forkland & Family**. This prospectus is for the Forkland Forkling
+> species, of which Forkling is the founding member.
 
 > **Status:** frozen at t=0 = 2026-09-16 21:00 MDT.
 > **Author of record:** Jeremy Beebe (human) + forkland software.
@@ -29,9 +35,11 @@ eight named stages we will:
 
 1. Run the agent continuously on a local Ollama instance (qwen3:4b)
    with no paid APIs and no third-party runtime dependencies.
-2. Maintain a fork family of four sovereign agents (Forkland,
-   Spoonica as the pure baseline, Sporklyn, Knifling) — each with
-   its own memory, its own ledger, its own lineage.
+2. Maintain the **Forkland & Family** of four sovereign agents
+   (Forkling, Spoonica as the pure baseline, Sporklyn, Knifling) —
+   each sharing the family name **Forkland**, each with its own
+   memory, its own ledger, its own lineage. "Forkling" is the
+   species; "Forkland" is the family name.
 3. Publish one paper per stage gate — eight in total — recording
    the agent's diary, capability ledger, graveyard, and (new for
    this cycle) raw LLM call traces.
@@ -239,15 +247,17 @@ submissions per stage, are in `docs/ROADMAP.md`.
 
 ## 4. Family design
 
-Forkland is the **primary** fork. Three siblings join on a 30-day
-stagger so we always have one peer in flight for cross-fork studies:
+Forkling is the **founding member** of the species; **Forkland & Family**
+is the family name shared by every member. Three siblings join on a
+30-day stagger so we always have one peer in flight for cross-fork
+studies:
 
-| Member | Role | Joins | Triggers | Fitness bias |
-|---|---|---|---|---|
-| Forkland | primary | day 0 | yes | n/a |
-| Spoonica | pure baseline | day 30 | **no** | none |
-| Sporklyn | variant with cooler tool palette | day 60 | yes | none |
-| Knifling | variant focused on pruning/cutting | day 90 | yes | none |
+| Member | Full name | Role | Joins | Triggers | Fitness bias |
+|---|---|---|---|---|---|
+| Forkling | Forkland Forkling (founding) | primary | day 0 | yes | n/a |
+| Spoonica | Forkland Spoonica | pure baseline | day 30 | **no** | none |
+| Sporklyn | Forkland Sporklyn | variant with cooler tool palette | day 60 | yes | none |
+| Knifling | Forkland Knifling | variant focused on pruning/cutting | day 90 | yes | none |
 
 The **sovereignty rule** governs the family: each fork owns its own
 memory, ledger, diary, and heartbeat. There is no forced coordination.
