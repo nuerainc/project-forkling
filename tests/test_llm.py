@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import pytest
 
-from dogfood.llm import LLM
+from forkling.llm import LLM
 
 
 def test_falls_back_when_ollama_unreachable():

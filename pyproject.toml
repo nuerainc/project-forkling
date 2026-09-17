@@ -3,7 +3,7 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "dogfood"
+name = "forkling"
 version = "0.1.0"
 description = "Self-contained, self-improving AI agent MVP. Lives in a repo, plans/builds/tests/deploys/rolls back improvements to itself, runs on local Ollama with no paid APIs."
 readme = "README.md"
@@ -29,9 +29,10 @@ dependencies = []  # stdlib only — true MVP, runs anywhere Python runs
 dev = ["pytest>=7"]
 
 [project.scripts]
-dogfood = "dogfood.__main__:main"
-pup = "dogfood.__main__:main"
+forkling = "forkling.__main__:main"
+dogfood = "forkling.__main__:main"
+pup = "forkling.__main__:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["dogfood*"]
+include = ["forkling*"]

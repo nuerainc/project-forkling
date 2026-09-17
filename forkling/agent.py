@@ -13,7 +13,10 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from .capability import CapabilityLedger
 from .config import Config
+from .diary import Diary
+from .graveyard import Graveyard
 from .llm import LLM
 from .memory import Memory
 from .planner import Planner, Step
@@ -57,49 +60,74 @@ class Result:
 
 
 class Agent:
-    def __init__(self, cfg: Config, llm: LLM, memory: Memory, planner: Planner) -> None:
+    def __init__(self, cfg: Config, llm: LLM, memory: Memory, planner: Planner,
+                 ledger: CapabilityLedger | None = None,
+                 graveyard: Graveyard | None = None,
+                 diary: Diary | None = None) -> None:
         self.cfg = cfg
         self.llm = llm
         self.memory = memory
         self.planner = planner
+        # New: capability ledger, graveyard, diary. Auto-created if not passed.
+        state_dir = Path(cfg.memory_dir)
+        self.ledger = ledger or CapabilityLedger(state_dir / "capabilities.jsonl")
+        self.graveyard = graveyard or Graveyard(state_dir / "graveyard.jsonl")
+        self.diary = diary or Diary(state_dir / "diary.jsonl")
         self.root = Path(cfg.repo_root).resolve()
+        self.diary.write("boot", f"forkling booted in {self.root}", repo=str(self.root))
 
     # ---- public ------------------------------------------------------------
 
     def run(self, task: str) -> Result:
         self.memory.log("run.start", task=task[:200])
+        self.diary.write("run.start", task[:300], ts_kind="run")
         steps = self._plan(task)
         result = Result(task=task, ok=True, used_llm=bool(steps and self._last_plan_used_llm))
 
         # Snapshot sha before any work, so we can roll back at the end if needed.
         try:
             pre_sha = tools.git_current_sha(self.root)
-        except ToolError:
+        except tools.ToolError:
             pre_sha = ""
 
         # Execute the plan, step by step.
         for step in steps:
             rec = self._execute(step)
             result.steps.append(rec)
+            self.ledger.record(action=step.action, target=str(step.args.get("path", "")),
+                               ok=rec.ok, agent_sha=pre_sha)
             if not rec.ok and step.action != "finish":
-                # Reflect: decide whether to keep going.
+                # Record failure in graveyard so future prompts can avoid it.
+                self.graveyard.record(
+                    path=str(step.args.get("path", "")),
+                    old=str(step.args.get("old", "")),
+                    new=str(step.args.get("new", "")),
+                    reason=rec.error[:500],
+                    source=self._last_plan_used_llm and "llm" or "rule-based",
+                )
+                self.diary.write("step.failed",
+                                 f"{step.action}: {rec.error[:200]}",
+                                 step_id=step.id)
                 if step.action == "test":
                     result.note = "test failed; will roll back if a self-change was attempted"
                 if step.action in {"patch", "write"} and pre_sha:
                     self.memory.log("rollback.start", reason=rec.error, sha=pre_sha)
+                    self.diary.write("rollback.start", f"reverting to {pre_sha[:7]}", sha=pre_sha)
                     rb = tools.git_checkout(pre_sha, cwd=self.root)
                     if rb.ok:
                         result.steps.append(self._record_rollback(step.id + 1, rb, pre_sha))
+                        self.diary.write("rollback.done", f"reverted to {pre_sha[:7]}")
                     else:
                         result.steps.append(self._record_rollback(step.id + 1, rb, pre_sha,
                                                                    note=f"checkout failed: {rb.stderr}"))
+                        self.diary.write("rollback.failed", rb.stderr[:200])
                 result.ok = False
                 break
 
         # Always try to record final sha for traceability.
         try:
             result.final_sha = tools.git_current_sha(self.root)
-        except ToolError:
+        except tools.ToolError:
             pass
 
         self.memory.record_run(task, result.ok, result.final_sha, len(result.steps))

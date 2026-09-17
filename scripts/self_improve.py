@@ -16,7 +16,7 @@ from pathlib import Path
 # Make `dogfood` importable when this script is run from repo root.
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from dogfood import Agent, Config, LLM, Memory, Planner, SelfImprover  # noqa: E402
+from forkling import Agent, Config, LLM, Memory, Planner, SelfImprover  # noqa: E402
 
 
 def main() -> int:

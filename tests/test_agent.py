@@ -9,12 +9,12 @@ from pathlib import Path
 
 import pytest
 
-from dogfood import tools
-from dogfood.agent import Agent
-from dogfood.config import Config
-from dogfood.llm import LLM
-from dogfood.memory import Memory
-from dogfood.planner import Planner
+from forkling import tools
+from forkling.agent import Agent
+from forkling.config import Config
+from forkling.llm import LLM
+from forkling.memory import Memory
+from forkling.planner import Planner
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -22,7 +22,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 
 def _copy_pkg(dest: Path) -> None:
     import shutil
-    shutil.copytree(REPO_ROOT / "dogfood", dest / "dogfood")
+    shutil.copytree(REPO_ROOT / "forkling", dest / "forkling")
 
 
 def _git_init(repo: Path) -> None:

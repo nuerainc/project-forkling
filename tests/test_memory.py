@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from dogfood.memory import Memory
+from forkling.memory import Memory
 
 
 def test_kv_roundtrip(tmp_path: Path):

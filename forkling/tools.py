@@ -161,8 +161,8 @@ def git_diff(cwd: str | os.PathLike | None = None, staged: bool = False) -> str:
 
 def git_commit(message: str, cwd: str | os.PathLike | None = None) -> ShellResult:
     # -c user.* overrides so commits work on a fresh clone without git config.
-    env = {"GIT_AUTHOR_NAME": "dogfood", "GIT_AUTHOR_EMAIL": "dogfood@local",
-           "GIT_COMMITTER_NAME": "dogfood", "GIT_COMMITTER_EMAIL": "dogfood@local"}
+    env = {"GIT_AUTHOR_NAME": "forkling", "GIT_AUTHOR_EMAIL": "dogfood@local",
+           "GIT_COMMITTER_NAME": "forkling", "GIT_COMMITTER_EMAIL": "dogfood@local"}
     # Stage everything we might have touched.
     _git(cwd, "add", "-A", env=env)
     return _git(cwd, "commit", "-m", message, env=env)

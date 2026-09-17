@@ -3,8 +3,8 @@ so the rule-based path is exercised deterministically."""
 
 from __future__ import annotations
 
-from dogfood.llm import LLM
-from dogfood.planner import Planner
+from forkling.llm import LLM
+from forkling.planner import Planner
 
 
 class _FakeLLM(LLM):
@@ -15,7 +15,7 @@ class _FakeLLM(LLM):
 
     def complete(self, prompt, system=None):  # type: ignore[override]
         # Force fallback path
-        from dogfood.llm import Completion
+        from forkling.llm import Completion
         try:
             self._call_ollama(prompt, system, False)
         except Exception as e:
@@ -62,7 +62,7 @@ def test_steps_are_renumbered():
 
 
 def test_parses_llm_json_with_fences():
-    from dogfood.planner import Planner as P
+    from forkling.planner import Planner as P
     raw = '```json\n{"steps":[{"action":"finish","args":{},"description":"done"}]}\n```'
     parsed = P._parse_llm_json(raw)
     assert len(parsed) == 1

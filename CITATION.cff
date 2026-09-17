@@ -1,0 +1,49 @@
+cff-version: 1.2.0
+message: "If you use forkland in research, please cite it as below."
+title: "forkland: a self-contained, self-improving AI agent with a verifiable evolutionary substrate"
+type: software
+license: MIT
+date-released: 2026-09-16
+version: 0.2.0
+
+authors:
+  - family-names: "Beebe"
+    given-names: "Jeremy"
+    email: "jeremy@example.com"
+    affiliation: "forkland maintainers"
+    orcid: "https://orcid.org/0000-0000-0000-0000"
+  - name: "forkland"
+    affiliation: "forkland AI agent"
+    note: "Software co-author. The capability ledger, graveyard, and diary record every contribution forkland made to its own codebase. See README 'Authorship & agent credit'."
+
+keywords:
+  - self-improving-agent
+  - dogfooding
+  - evolutionary-ai
+  - version-control-as-substrate
+  - ai-safety
+  - local-llm
+  - ollama
+  - reproducibility
+
+abstract: >-
+  forkland is a self-contained, self-improving AI agent that lives in a
+  git repository, plans/builds/tests/deploys/rolls back improvements to
+  itself, and runs on local Ollama with no paid APIs. v0.2 introduces a
+  research substrate: a SHA-256-chained capability ledger, a patch
+  graveyard for negative-example learning, a multi-objective fitness
+  function, A/B lineage experiments, phylogenetic replay of ancestor
+  agents, an append-only diary, and a grant hunter module. The agent
+  dogfoods itself from the first push: every change is gated by its own
+  test suite and the entire evolutionary history is auditable from the
+  git log.
+
+preferred-citation:
+  type: article
+  title: "forkland: Version-Control-Native Evolution for Self-Improving Code Agents"
+  authors:
+    - family-names: "Beebe"
+      given-names: "Jeremy"
+    - name: "forkland"
+  journal: "arXiv preprint"
+  year: 2026

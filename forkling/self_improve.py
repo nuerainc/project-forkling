@@ -74,12 +74,12 @@ Constraints:
 
 class SelfImprover:
     SAFE_FILES = (
-        "dogfood/agent.py",
-        "dogfood/planner.py",
-        "dogfood/memory.py",
-        "dogfood/tools.py",
-        "dogfood/config.py",
-        "dogfood/llm.py",
+        "forkling/agent.py",
+        "forkling/planner.py",
+        "forkling/memory.py",
+        "forkling/tools.py",
+        "forkling/config.py",
+        "forkling/llm.py",
     )
 
     def __init__(self, agent: Agent) -> None:
@@ -88,12 +88,27 @@ class SelfImprover:
     def propose_and_apply(self, goal: str = "") -> SelfImproveResult:
         root = self.agent.root
         before_sha = _safe_sha(root)
+        self.agent.diary.write("self-improve.start",
+                               f"goal: {goal[:200] or '(default)'}",
+                               sha_before=before_sha)
 
         target = self._pick_target()
         original = tools.read_file(target)
-        proposal = self._propose(target, original, goal)
+        target_str = str(target)
+        proposal = self._propose(target_str, original, goal)
 
         if proposal.get("kind") == "noop":
+            self.agent.graveyard.record(
+                path=target_str, old="", new="",
+                reason=str(proposal.get("reason", "noop"))[:500],
+                source="self",
+            )
+            self.agent.diary.write("self-improve.noop",
+                                   str(proposal.get("reason", "noop"))[:200])
+            self.agent.ledger.record(
+                action="self-improve.noop", target=target_str, ok=True,
+                agent_sha=before_sha, extra={"reason": str(proposal.get("reason", ""))[:80]},
+            )
             return SelfImproveResult(
                 changed=False, committed=False, rolled_back=False,
                 before_sha=before_sha, after_sha=before_sha,
@@ -107,6 +122,11 @@ class SelfImprover:
 
         # Validate before touching anything.
         if not old or old == new:
+            self.agent.graveyard.record(
+                path=patch_path, old=old, new=new,
+                reason="empty or no-op patch", source="validate",
+            )
+            self.agent.diary.write("self-improve.rejected", "empty or no-op patch")
             return SelfImproveResult(
                 changed=False, committed=False, rolled_back=False,
                 before_sha=before_sha, after_sha=before_sha,
@@ -114,6 +134,13 @@ class SelfImprover:
                 note="patch was empty or identical",
             )
         if original.count(old) != 1 and tools.read_file(target).count(old) != 1:
+            self.agent.graveyard.record(
+                path=patch_path, old=old, new=new,
+                reason=f"'old' substring not unique ({original.count(old)} occurrences)",
+                source="validate",
+            )
+            self.agent.diary.write("self-improve.rejected",
+                                   f"non-unique old in {patch_path}")
             return SelfImproveResult(
                 changed=False, committed=False, rolled_back=False,
                 before_sha=before_sha, after_sha=before_sha,
@@ -123,6 +150,7 @@ class SelfImprover:
 
         # Snapshot once more, then apply.
         tools.apply_patch(target, old, new)
+        self.agent.diary.write("self-improve.applied", f"patched {patch_path}")
 
         # Run the test suite; rollback on failure.
         test_res = tools.run_shell(self.agent.cfg.test_command.split(),
@@ -132,6 +160,13 @@ class SelfImprover:
 
         if not test_res.ok:
             tools.git_checkout(before_sha, cwd=root)
+            self.agent.graveyard.record(
+                path=patch_path, old=old, new=new,
+                reason=f"tests failed: {(test_res.stdout+test_res.stderr)[-200:]}",
+                source="test-gate",
+            )
+            self.agent.diary.write("self-improve.rolled-back",
+                                   f"tests failed; reverted to {before_sha[:7]}")
             return SelfImproveResult(
                 changed=True, committed=False, rolled_back=True,
                 before_sha=before_sha, after_sha=_safe_sha(root),
@@ -147,6 +182,16 @@ class SelfImprover:
         tag = tools.git_tag(f"self-{after_sha[:7]}", cwd=root)
         steps.append({"phase": "commit", "ok": commit.ok, "tail": (commit.stdout + commit.stderr)[-200:]})
         steps.append({"phase": "tag", "ok": tag.ok, "tail": (tag.stdout + tag.stderr)[-200:]})
+        # Milestone diary entry — visible in paper/grant evidence later.
+        self.agent.diary.write(
+            "milestone", f"shipped self-improvement to {patch_path}",
+            sha_before=before_sha, sha_after=after_sha,
+            file=patch_path, milestone=True,
+        )
+        self.agent.ledger.record(
+            action="self-improve", target=patch_path, ok=True,
+            agent_sha=after_sha, extra={"tag": f"self-{after_sha[:7]}"},
+        )
 
         return SelfImproveResult(
             changed=True, committed=commit.ok, rolled_back=False,

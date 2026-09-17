@@ -5,7 +5,7 @@ A step is a dict::
     {"id": int, "action": str, "args": dict, "description": str}
 
 The agent then executes each step in order, using the matching tool in
-:mod:`dogfood.tools`.
+:mod:`forkling.tools`.
 
 Strategy:
 
@@ -20,9 +20,12 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import asdict, dataclass, field
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from .llm import LLM
+
+if TYPE_CHECKING:
+    from .graveyard import Graveyard
 
 
 SYSTEM_PROMPT = """You are the planner of dogfood, a self-contained coding agent.
@@ -59,11 +62,19 @@ class Step:
 
 
 class Planner:
-    def __init__(self, llm: LLM) -> None:
+    def __init__(self, llm: LLM, graveyard: "Graveyard | None" = None) -> None:
         self.llm = llm
+        self.graveyard = graveyard
 
     def plan(self, task: str) -> list[Step]:
-        completion = self.llm.complete(prompt=task, system=SYSTEM_PROMPT)
+        # Inject recent failures into the prompt so the LLM learns from them.
+        graveyard_hint = ""
+        if self.graveyard is not None:
+            graveyard_hint = self.graveyard.as_prompt_excerpt(n=5)
+        prompt = task
+        if graveyard_hint:
+            prompt = f"{task}\n\n{graveyard_hint}"
+        completion = self.llm.complete(prompt=prompt, system=SYSTEM_PROMPT)
         steps = self._parse_llm_json(completion.text) if completion.used_llm else []
         if not steps:
             steps = self._rule_based(task)
@@ -128,7 +139,7 @@ class Planner:
         # improve self / refactor / tidy / clean / format
         if re.search(r"\b(improve|refactor|tidy|clean|format|polish)\b", low):
             return [
-                step("list", {"path": "dogfood"}, "List the agent package"),
+                step("list", {"path": "forkling"}, "List the agent package"),
                 step("read", {"path": "dogfood/agent.py"}, "Read agent source"),
                 step("test", {}, "Baseline: run tests"),
                 step("patch", {

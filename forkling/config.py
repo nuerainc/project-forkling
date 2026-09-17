@@ -27,23 +27,25 @@ def _env_int(name: str, default: int) -> int:
 @dataclass
 class Config:
     repo_root: str = "."                 # working directory of the agent
-    memory_dir: str = "~/.dogfood"       # where persistent state lives
+    memory_dir: str = "~/.forkling"      # where persistent state lives
     ollama_url: str = "http://localhost:11434"
     ollama_model: str = "qwen3:4b"       # any local model works; small is fine
     llm_timeout: int = 120               # seconds for one completion
     max_steps: int = 20                   # hard cap on plan length per run
     test_command: str = "pytest -q"      # gate that decides ship-vs-rollback
     stream: bool = True                  # stream Ollama responses
+    sovereign: bool = False              # Pi-Zero mode: strip optional features
 
     @classmethod
     def from_env(cls) -> "Config":
         return cls(
-            repo_root=_env("DOGFOOD_REPO", "."),
-            memory_dir=_env("DOGFOOD_MEMORY", "~/.dogfood"),
-            ollama_url=_env("DOGFOOD_OLLAMA_URL", "http://localhost:11434"),
-            ollama_model=_env("DOGFOOD_OLLAMA_MODEL", "qwen3:4b"),
-            llm_timeout=_env_int("DOGFOOD_LLM_TIMEOUT", 120),
-            max_steps=_env_int("DOGFOOD_MAX_STEPS", 20),
-            test_command=_env("DOGFOOD_TEST", "pytest -q"),
-            stream=_env("DOGFOOD_STREAM", "1") not in ("0", "false", "False"),
+            repo_root=_env("FORKLING_REPO", "."),
+            memory_dir=_env("FORKLING_MEMORY", "~/.forkling"),
+            ollama_url=_env("FORKLING_OLLAMA_URL", "http://localhost:11434"),
+            ollama_model=_env("FORKLING_OLLAMA_MODEL", "qwen3:4b"),
+            llm_timeout=_env_int("FORKLING_LLM_TIMEOUT", 120),
+            max_steps=_env_int("FORKLING_MAX_STEPS", 20),
+            test_command=_env("FORKLING_TEST", "pytest -q"),
+            stream=_env("FORKLING_STREAM", "1") not in ("0", "false", "False"),
+            sovereign=_env("FORKLING_SOVEREIGN", "0") in ("1", "true", "True"),
         )

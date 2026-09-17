@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-from dogfood import tools
-from dogfood.tools import ToolError, apply_patch, list_dir, read_file, run_shell, write_file
+from forkling import tools
+from forkling.tools import ToolError, apply_patch, list_dir, read_file, run_shell, write_file
 
 
 def test_write_and_read_roundtrip(tmp_path):

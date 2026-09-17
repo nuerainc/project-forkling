@@ -16,13 +16,13 @@ from pathlib import Path
 
 import pytest
 
-from dogfood import tools
-from dogfood.agent import Agent
-from dogfood.config import Config
-from dogfood.llm import LLM
-from dogfood.memory import Memory
-from dogfood.planner import Planner
-from dogfood.self_improve import SelfImprover
+from forkling import tools
+from forkling.agent import Agent
+from forkling.config import Config
+from forkling.llm import LLM
+from forkling.memory import Memory
+from forkling.planner import Planner
+from forkling.self_improve import SelfImprover
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -30,7 +30,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 
 def _copy_package(dest: Path) -> None:
     """Copy the dogfood package + tests into a temp git repo."""
-    shutil.copytree(REPO_ROOT / "dogfood", dest / "dogfood")
+    shutil.copytree(REPO_ROOT / "forkling", dest / "forkling")
     # Copy a small subset of tests so the suite is real but fast.
     tests_dest = dest / "tests"
     tests_dest.mkdir(exist_ok=True)
@@ -44,8 +44,8 @@ def _copy_package(dest: Path) -> None:
 def _init_repo_with_initial_commit(repo: Path) -> str:
     import os
     env = {**os.environ,
-           "GIT_AUTHOR_NAME": "dogfood", "GIT_AUTHOR_EMAIL": "dogfood@local",
-           "GIT_COMMITTER_NAME": "dogfood", "GIT_COMMITTER_EMAIL": "dogfood@local",
+           "GIT_AUTHOR_NAME": "forkling", "GIT_AUTHOR_EMAIL": "dogfood@local",
+           "GIT_COMMITTER_NAME": "forkling", "GIT_COMMITTER_EMAIL": "dogfood@local",
            "GIT_CONFIG_GLOBAL": "/dev/null", "GIT_CONFIG_SYSTEM": "/dev/null"}
     subprocess.run(["git", "init", "-b", "main"], cwd=repo, check=True, env=env)
     subprocess.run(["git", "add", "-A"], cwd=repo, check=True, env=env)
