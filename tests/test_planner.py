@@ -13,7 +13,7 @@ class _FakeLLM(LLM):
     def __init__(self):
         super().__init__(url="http://127.0.0.1:1", model="nope")  # unreachable
 
-    def complete(self, prompt, system=None):  # type: ignore[override]
+    def complete(self, prompt, system=None, kind="complete", task=""):  # type: ignore[override]
         # Force fallback path
         from forkling.llm import Completion
         try:

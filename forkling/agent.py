@@ -142,7 +142,8 @@ class Agent:
         # The planner always uses the LLM, with rule-based fallback inside .complete().
         # We approximate `used_llm` by re-asking once to peek — cheap, and the
         # result is also useful for the caller.
-        peek = self.llm.complete(prompt=task[:200], system=None)
+        peek = self.llm.complete(prompt=task[:200], system=None,
+                                  kind="plan.peek", task=task[:500])
         Agent._last_plan_used_llm = peek.used_llm
         return self.planner.plan(task)
 

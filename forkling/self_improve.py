@@ -214,7 +214,9 @@ class SelfImprover:
         tail = source[-1500:] if len(source) > 4000 else ""
         excerpt = head + ("\n...\n" + tail if tail else "")
         prompt = f"Goal: {goal or 'Find one tiny, safe improvement.'}\n\nFile: {path}\n\n```python\n{excerpt}\n```\n\nRespond with JSON only."
-        completion = self.agent.llm.complete(prompt=prompt, system=SYSTEM_PROMPT)
+        completion = self.agent.llm.complete(prompt=prompt, system=SYSTEM_PROMPT,
+                                              kind="improve.propose",
+                                              task=goal[:500])
         if completion.used_llm:
             parsed = _try_json(completion.text)
             if parsed and parsed.get("kind") != "noop":

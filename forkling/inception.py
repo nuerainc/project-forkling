@@ -255,7 +255,9 @@ class Inception:
                 "short paragraphs.\n\n"
                 f"THOUGHT: {t.thought}"
             )
-            completion = llm.complete(prompt=prompt, system=None)
+            completion = llm.complete(prompt=prompt, system=None,
+                                           kind="inception.respond",
+                                           task=t.thought[:500])
             response_text = completion.text.strip() or "(no response generated)"
 
             # Log to diary (mandatory acknowledgment).

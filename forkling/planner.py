@@ -93,7 +93,8 @@ class Planner:
             if gh:
                 prompt_parts.append(gh)
         prompt = "\n\n".join(prompt_parts)
-        completion = self.llm.complete(prompt=prompt, system=SYSTEM_PROMPT)
+        completion = self.llm.complete(prompt=prompt, system=SYSTEM_PROMPT,
+                                       kind="plan", task=task[:500])
         steps = self._parse_llm_json(completion.text) if completion.used_llm else []
         if not steps:
             steps = self._rule_based(task)

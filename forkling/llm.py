@@ -13,10 +13,14 @@ from __future__ import annotations
 import json
 import os
 import socket
+import time
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
-from typing import Iterable
+from typing import TYPE_CHECKING, Iterable
+
+if TYPE_CHECKING:
+    from .trace import Trace
 
 
 @dataclass
@@ -28,28 +32,76 @@ class Completion:
 
 
 class LLM:
-    """Thin wrapper around a local Ollama daemon with a graceful fallback."""
+    """Thin wrapper around a local Ollama daemon with a graceful fallback.
 
-    def __init__(self, url: str = "http://localhost:11434", model: str = "qwen3:4b", timeout: int = 120) -> None:
+    If a Trace is attached, every complete() call appends one row to the
+    SHA-256-chained trace log (kind="complete", with prompt/response/
+    latency). This is opt-in so the no-Trace hot path stays trivial.
+    """
+
+    def __init__(
+        self,
+        url: str = "http://localhost:11434",
+        model: str = "qwen3:4b",
+        timeout: int = 120,
+        trace: "Trace | None" = None,
+    ) -> None:
         self.url = url.rstrip("/")
         self.model = model
         self.timeout = timeout
+        self._trace = trace
+
+    def attach_trace(self, trace: "Trace") -> None:
+        """Attach a Trace for LLM-call logging. Idempotent."""
+        self._trace = trace
 
     # ---- public API --------------------------------------------------------
 
-    def complete(self, prompt: str, system: str | None = None) -> Completion:
-        """Return a Completion. Tries Ollama; falls back to the rule-based planner."""
+    def complete(self, prompt: str, system: str | None = None,
+                 kind: str = "complete", task: str = "") -> Completion:
+        """Return a Completion. Tries Ollama; falls back to the rule-based planner.
+
+        If a Trace is attached, the call is logged with the given kind/task
+        tags. Trace writes are best-effort — a failing trace never breaks a
+        completion.
+        """
+        t0 = time.monotonic()
         try:
             text = self._call_ollama(prompt, system=system, stream=False)
             if text:
-                return Completion(text=text, used_llm=True, model=self.model)
+                completion = Completion(text=text, used_llm=True, model=self.model)
+                self._maybe_trace(kind, prompt, system, task, t0, completion)
+                return completion
         except Exception as e:  # connection refused, timeout, model missing, …
             err = f"{e.__class__.__name__}: {e}"
             text = self._rule_based(prompt, system)
-            return Completion(text=text, used_llm=False, model="rule-based", error=err)
+            completion = Completion(text=text, used_llm=False, model="rule-based", error=err)
+            self._maybe_trace(kind, prompt, system, task, t0, completion)
+            return completion
         # Ollama reachable but returned empty — fall back too
         text = self._rule_based(prompt, system)
-        return Completion(text=text, used_llm=False, model="rule-based", error="empty-ollama-response")
+        completion = Completion(text=text, used_llm=False, model="rule-based", error="empty-ollama-response")
+        self._maybe_trace(kind, prompt, system, task, t0, completion)
+        return completion
+
+    def _maybe_trace(self, kind: str, prompt: str, system: str | None,
+                     task: str, t0: float, completion: Completion) -> None:
+        if self._trace is None:
+            return
+        try:
+            self._trace.record(
+                kind=kind,
+                prompt=prompt,
+                response=completion.text,
+                model=completion.model,
+                used_llm=completion.used_llm,
+                latency_ms=int((time.monotonic() - t0) * 1000),
+                system=system or "",
+                task=task,
+            )
+        except Exception:
+            # Tracing must never break the agent loop.
+            pass
 
     def stream(self, prompt: str, system: str | None = None) -> Iterable[str]:
         """Yield chunks of the model's response. Falls back to a single chunk."""

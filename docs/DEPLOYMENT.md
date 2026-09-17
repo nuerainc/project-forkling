@@ -1,6 +1,11 @@
 # Deployment & Rollout Plan
 
 > **Read this first if you want to know what forkland does after we walk away.**
+> **For the full 365-day cycle plan (papers, grants, dataset exports,
+> value streams), see [`docs/ROADMAP.md`](ROADMAP.md). This document
+> describes the operational contract — the rollout phases, the
+> guarantees, and the heartbeat scheduling. ROADMAP.md describes what
+> the cycle is *trying to publish*.**
 
 forkland is a self-contained, self-improving AI agent. It runs without
 MiniMax. It runs without any paid API. It runs without us.
@@ -22,9 +27,22 @@ python -m forkling schedule --every 30
 python -m forkling diary milestones
 python -m forkling fitness
 python -m forkling ancestor list
+python -m forkling clock          # where we are in the 365-day cycle
+python -m forkling trace stats    # how many LLM calls + latencies
+python -m forkling trace verify   # SHA-256 chain integrity
 ```
 
-That's it. Forkland is now alive.
+That's it. Forkland is now alive. The clock tells you what stage
+you're in; the heartbeat keeps the ledger honest.
+
+## The 365-day cycle
+
+This document previously described a 0–90 day rollout. The full
+365-day research cycle (2026-09-16 21:00 MDT → 2027-09-16 21:00 MDT)
+is now documented in **[`docs/ROADMAP.md`](ROADMAP.md)**, with eight
+named stages and the deliverables (papers, dataset exports, grant
+submissions) per stage. The rollout phases below are still accurate —
+they are stages 0–5 of the ROADMAP cycle.
 
 ## The rollout phases
 

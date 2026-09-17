@@ -11,7 +11,7 @@ class _FakeLLM:
     def __init__(self):
         self.calls = []
 
-    def complete(self, prompt, system=None):
+    def complete(self, prompt, system=None, kind="complete", task=""):
         from forkling.llm import Completion
         self.calls.append(prompt)  # keep the full prompt
         return Completion(text="I noticed this. I'll keep going.",

@@ -10,6 +10,7 @@ from pathlib import Path
 from .agent import Agent
 from .ancestor import Ancestry, PRECURSOR, Generation
 from .capability import CapabilityLedger
+from .clock import Clock
 from .config import Config
 from .diary import Diary
 from .evolution import Evolution
@@ -23,6 +24,7 @@ from .paper import render as render_paper, update as update_paper, append_status
 from .planner import Planner
 from .replay import diff_replays, lineage as replay_lineage, replay as do_replay
 from .self_improve import SelfImprover
+from .trace import Trace
 from . import tools
 
 
@@ -30,10 +32,25 @@ def _build_agent(repo: Path | None, cfg: Config | None = None) -> Agent:
     cfg = cfg or Config.from_env()
     if repo is not None:
         cfg.repo_root = str(repo.resolve())
-    llm = LLM(url=cfg.ollama_url, model=cfg.ollama_model, timeout=cfg.llm_timeout)
+    memory_dir = Path(cfg.memory_dir)
+    trace = Trace(memory_dir / "trace.jsonl")
+    llm = LLM(url=cfg.ollama_url, model=cfg.ollama_model,
+              timeout=cfg.llm_timeout, trace=trace)
     memory = Memory(cfg.memory_dir)
-    planner = Planner(llm, graveyard=Graveyard(Path(cfg.memory_dir) / "graveyard.jsonl"))
+    planner = Planner(llm, graveyard=Graveyard(memory_dir / "graveyard.jsonl"))
     return Agent(cfg=cfg, llm=llm, memory=memory, planner=planner)
+
+
+def _build_llm(cfg: Config | None = None) -> LLM:
+    """Build an LLM with the standard trace attached.
+
+    Used by CLI commands that need an LLM but not the full Agent (plan,
+    self-improve, ancestor consult, heartbeat).
+    """
+    cfg = cfg or Config.from_env()
+    trace = Trace(Path(cfg.memory_dir) / "trace.jsonl")
+    return LLM(url=cfg.ollama_url, model=cfg.ollama_model,
+               timeout=cfg.llm_timeout, trace=trace)
 
 
 def cmd_run(args: argparse.Namespace) -> int:
@@ -47,7 +64,7 @@ def cmd_run(args: argparse.Namespace) -> int:
 
 def cmd_plan(args: argparse.Namespace) -> int:
     cfg = Config.from_env()
-    llm = LLM(url=cfg.ollama_url, model=cfg.ollama_model, timeout=cfg.llm_timeout)
+    llm = _build_llm(cfg)
     p = Planner(llm)
     steps = p.plan(args.task)
     for s in steps:
@@ -238,8 +255,9 @@ def cmd_ancestor(args: argparse.Namespace) -> int:
             "approached it before forkland existed. Be direct, research-flavored, "
             "and include one concrete suggestion."
         )
-        llm = LLM(url=cfg.ollama_url, model=cfg.ollama_model, timeout=cfg.llm_timeout)
-        completion = llm.complete(prompt=args.task, system=sys_prompt)
+        llm = _build_llm(cfg)
+        completion = llm.complete(prompt=args.task, system=sys_prompt,
+                                  kind="ancestor.consult", task=args.task[:500])
         print(f"[via {'ollama/' + completion.model if completion.used_llm else 'rule-based'}]")
         print(completion.text)
         return 0
@@ -384,7 +402,180 @@ def cmd_paper(args: argparse.Namespace) -> int:
         out = append_paper_status(cfg.memory_dir, paper_path)
         print(f"appended status to {out}")
         return 0
+    if args.action == "publish":
+        stage = getattr(args, "stage", None)
+        if stage is None:
+            print("usage: forkling paper publish <stage>", file=sys.stderr)
+            return 1
+        # Stage the current paper.md into paper/papers/<stage>.md and log
+        # a diary milestone. This is what the 365-day cycle calls at each
+        # paper milestone.
+        repo = Path(cfg.repo_root).resolve()
+        out_dir = repo / "paper" / "papers"
+        out_dir.mkdir(parents=True, exist_ok=True)
+        # Run a fresh update first so the staged snapshot reflects the
+        # current ledger / diary / fitness state.
+        update_paper(cfg.memory_dir, str(repo / "paper" / "paper.md"))
+        src = repo / "paper" / "paper.md"
+        dst = out_dir / f"{stage}.md"
+        dst.write_text(src.read_text(encoding="utf-8"), encoding="utf-8")
+        # Diary milestone.
+        clock = Clock.from_env()
+        diary = Diary(Path(cfg.memory_dir) / "diary.jsonl")
+        meta = {
+            "milestone": True,
+            "stage": stage,
+            "day_index": clock.day_index(),
+            "path": str(dst.relative_to(repo)),
+        }
+        diary.write("paper.published",
+                    f"stage={stage} day={clock.day_index()} -> {meta['path']}",
+                    **meta)
+        print(f"published {stage} -> {dst}")
+        return 0
     return 1
+
+
+def cmd_clock(args: argparse.Namespace) -> int:
+    """Show the fork's project clock: t=0, current day, stage, progress."""
+    cfg = Config.from_env()
+    fork_name = getattr(args, "fork", "forkland")
+    clock = Clock.from_env(fork_name=fork_name)
+    if getattr(args, "save", False):
+        path = Path(cfg.memory_dir) / "clock.json"
+        clock.save(path)
+        print(f"saved clock to {path}")
+    print(json.dumps(clock.as_dict(), indent=2))
+    return 0
+
+
+def cmd_trace(args: argparse.Namespace) -> int:
+    """Show or verify the LLM-call trace log."""
+    cfg = Config.from_env()
+    trace = Trace(Path(cfg.memory_dir) / "trace.jsonl")
+    if args.action == "stats":
+        print(json.dumps(trace.stats(), indent=2))
+        return 0
+    if args.action == "verify":
+        ok, msg = trace.verify()
+        print(json.dumps({"ok": ok, "message": msg}, indent=2))
+        return 0 if ok else 1
+    if args.action == "tail":
+        n = getattr(args, "n", 10)
+        for e in trace.entries(limit=n):
+            ts = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(e.get("ts", 0)))
+            kind = e.get("kind", "?")
+            model = e.get("model", "?")
+            llm_flag = "LLM" if e.get("used_llm") else "fallback"
+            lat = e.get("latency_ms", 0)
+            task = (e.get("task", "") or "")[:60]
+            print(f"[{ts}] {kind:<18} {model:<14} {llm_flag:<9} {lat:>5}ms  {task}")
+        return 0
+    return 1
+
+
+def cmd_export_dataset(args: argparse.Namespace) -> int:
+    """Bundle the year's trace + ledger + diary + graveyard + fitness into
+    a Zenodo-ready archive (one zip per export). Idempotent and stateless —
+    re-runnable any time without committing anything to git.
+
+    The archive is the *dataset* of the 365-day cycle. It is what we
+    publish on Zenodo / Hugging Face / arXiv alongside the papers.
+    """
+    import zipfile
+    cfg = Config.from_env()
+    repo = Path(cfg.repo_root).resolve()
+    memory_dir = Path(cfg.memory_dir)
+    clock = Clock.from_env()
+    stage = clock.stage()
+    out_dir = repo / "paper" / "datasets"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    ts = time.strftime("%Y%m%d-%H%M%S", time.localtime(clock.now_epoch()))
+    archive = out_dir / f"forkland-dataset-{ts}-{stage}.zip"
+
+    files_to_include = [
+        ("memory/diary.jsonl", memory_dir / "diary.jsonl"),
+        ("memory/capabilities.jsonl", memory_dir / "capabilities.jsonl"),
+        ("memory/graveyard.jsonl", memory_dir / "graveyard.jsonl"),
+        ("memory/ancestry.json", memory_dir / "ancestry.json"),
+        ("memory/trace.jsonl", memory_dir / "trace.jsonl"),
+        ("memory/family.json", memory_dir / "family.json"),
+        ("memory/memory.json", memory_dir / "memory.json"),
+        ("manifest.json", None),  # synthesized
+        ("clock.json", None),     # synthesized
+    ]
+
+    # Get current fitness for the manifest.
+    try:
+        fit = Evolution(
+            CapabilityLedger(memory_dir / "capabilities.jsonl"),
+            Graveyard(memory_dir / "graveyard.jsonl"),
+            repo,
+        ).fitness().as_dict()
+    except Exception as e:
+        fit = {"error": str(e)}
+
+    # Build manifest.
+    manifest = {
+        "project": "forkland",
+        "fork_name": clock.fork_name,
+        "exported_at": clock.now_iso(),
+        "stage": stage,
+        "stage_description": clock.stage_description(),
+        "day_index": clock.day_index(),
+        "days_into_cycle": clock.days_into_cycle(),
+        "cycle_progress": round(clock.cycle_progress(), 4),
+        "t0_iso": clock.as_dict()["t0_iso"],
+        "cycle_days": 365,
+        "fitness": fit,
+        "license": "MIT",
+        "files": [name for name, _ in files_to_include],
+        "notes": (
+            "Year-1 dataset export. Contains every LLM call, capability "
+            "acquisition, diary entry, and graveyard record from this "
+            "fork's lifetime. Suitable for publication on Zenodo, "
+            "Hugging Face Datasets, or alongside arXiv papers."
+        ),
+    }
+
+    with zipfile.ZipFile(archive, "w", zipfile.ZIP_DEFLATED) as zf:
+        for name, path in files_to_include:
+            if path is not None and path.exists():
+                zf.write(path, arcname=f"forkland/{name}")
+        zf.writestr("forkland/manifest.json",
+                    json.dumps(manifest, indent=2, sort_keys=True))
+        zf.writestr("forkland/clock.json",
+                    json.dumps(clock.as_dict(), indent=2, sort_keys=True))
+        # README at the root of the zip
+        readme = (
+            "# forkland dataset\n\n"
+            f"Project: {manifest['project']}  \n"
+            f"Fork: {manifest['fork_name']}  \n"
+            f"Stage: {manifest['stage']} — {manifest['stage_description']}  \n"
+            f"Day: {manifest['day_index']} of {manifest['cycle_days']}  \n"
+            f"Exported: {manifest['exported_at']}\n\n"
+            "## Contents\n\n"
+            "- diary.jsonl — every entry the agent wrote about itself\n"
+            "- capabilities.jsonl — SHA-256-chained ledger of demonstrated skills\n"
+            "- graveyard.jsonl — failed patches with prompt-injection excerpts\n"
+            "- ancestry.json — precursor + git generations\n"
+            "- trace.jsonl — SHA-256-chained raw LLM call log\n"
+            "- family.json — federated family registry\n"
+            "- manifest.json — this export's fingerprint\n"
+            "- clock.json — project clock snapshot\n"
+        )
+        zf.writestr("README.md", readme)
+
+    # Diary milestone.
+    Diary(memory_dir / "diary.jsonl").write(
+        "dataset.exported",
+        f"-> {archive.name}",
+        milestone=True,
+        stage=stage,
+        size_bytes=archive.stat().st_size,
+    )
+    print(f"exported {archive}  ({archive.stat().st_size} bytes)")
+    return 0
 
 
 def cmd_heartbeat(args: argparse.Namespace) -> int:
@@ -432,7 +623,7 @@ def cmd_heartbeat(args: argparse.Namespace) -> int:
         cfg = Config.from_env()
         inc = Inception(repo)
         diary = Diary(Path(cfg.memory_dir) / "diary.jsonl")
-        llm = LLM(url=cfg.ollama_url, model=cfg.ollama_model, timeout=cfg.llm_timeout)
+        llm = _build_llm(cfg)
         pending = inc.pending_count()
         triggered_responses: list[dict] = []
         if pending > 0:
@@ -581,6 +772,9 @@ def build_parser() -> argparse.ArgumentParser:
     papup.add_argument("--path", default=None)
     papap = papsub.add_parser("append", help="Append a status block to the paper.")
     papap.add_argument("--path", default=None)
+    pappub = papsub.add_parser("publish", help="Stage current paper.md as a milestone (paper/papers/<stage>.md).")
+    pappub.add_argument("stage", help="Stage name, e.g. day-30, mid-year, year-end.")
+    pappub.add_argument("--path", default=None)
     pap.set_defaults(func=cmd_paper)
 
     hb = sub.add_parser("heartbeat", help="One autonomous beat: self-improve + paper update + verify.")
@@ -614,6 +808,26 @@ def build_parser() -> argparse.ArgumentParser:
     ius.add_argument("id")
     incsub.add_parser("staged", help="List staged triggers.")
     inc.set_defaults(func=cmd_inception)
+
+    clk = sub.add_parser("clock", help="Project clock: t=0 anchor, current day, stage, progress.")
+    clk.add_argument("--fork", default="forkland", help="Name of this fork.")
+    clk.add_argument("--save", action="store_true",
+                     help="Persist the clock to <memory_dir>/clock.json.")
+    clk.set_defaults(func=cmd_clock)
+
+    trc = sub.add_parser("trace", help="LLM call trace: raw prompt/response/timing log.")
+    trcsub = trc.add_subparsers(dest="action", required=True)
+    trcsub.add_parser("stats", help="Per-kind, per-model, latency stats.")
+    trcsub.add_parser("verify", help="Verify the SHA-256 chain of trace entries.")
+    ttail = trcsub.add_parser("tail", help="Show the last N entries.")
+    ttail.add_argument("n", type=int, nargs="?", default=10)
+    trc.set_defaults(func=cmd_trace)
+
+    exp = sub.add_parser("export-dataset",
+                         help="Bundle memory+trace into a Zenodo-ready archive.")
+    exp.add_argument("--stage", default=None,
+                     help="Override the stage label inside the archive.")
+    exp.set_defaults(func=cmd_export_dataset)
 
     return p
 
