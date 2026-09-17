@@ -87,6 +87,17 @@ class Diary:
         """Return only entries tagged as milestones — for papers / grants."""
         return [e for e in self.entries() if e.get("milestone")]
 
+    def seeds(self, n: int | None = None) -> list[dict]:
+        """Return only seed entries — thoughts planted for the agent to reflect on.
+
+        Seeds are the *inception* mechanism: a human (or another fork)
+        writes a thought, the agent encounters it during planning, and
+        may develop its own response. We never tell the agent what to
+        do with a seed — only that it exists.
+        """
+        seeds = [e for e in self.entries() if e.get("kind") == "seed"]
+        return seeds[-n:] if n else seeds
+
     def stats(self) -> dict:
         from collections import Counter
         entries = self.entries()

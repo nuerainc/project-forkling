@@ -148,8 +148,20 @@ def git_status(cwd: str | os.PathLike | None = None) -> ShellResult:
 def git_current_sha(cwd: str | os.PathLike | None = None) -> str:
     res = _git(cwd, "rev-parse", "HEAD")
     if not res.ok:
-        raise ToolError(f"git rev-parse failed: {res.stderr.strip()}")
+        raise ToolError(f"git rev-parse failed: {res.stderr.strip() or res.stdout.strip() or '(no output)'}")
     return res.stdout.strip()
+
+
+def git_is_detached(cwd: str | os.PathLike | None = None) -> bool:
+    """True if HEAD is detached (no current branch)."""
+    res = _git(cwd, "symbolic-ref", "--quiet", "HEAD")
+    return not res.ok
+
+
+def git_clean(cwd: str | os.PathLike | None = None) -> tuple[bool, str]:
+    """Return (clean, porcelain_output). Useful before destructive operations."""
+    res = _git(cwd, "status", "--porcelain")
+    return (res.ok and res.stdout.strip() == ""), res.stdout
 
 
 def git_diff(cwd: str | os.PathLike | None = None, staged: bool = False) -> str:

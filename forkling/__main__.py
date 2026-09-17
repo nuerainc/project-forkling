@@ -16,12 +16,14 @@ from .evolution import Evolution
 from .family import Family
 from .graveyard import Graveyard
 from .grants import ProjectProfile, draft as draft_grant, match as match_grants
+from .inception import Inception, MIN_WORDS, _word_count
 from .llm import LLM
 from .memory import Memory
 from .paper import render as render_paper, update as update_paper, append_status as append_paper_status
 from .planner import Planner
 from .replay import diff_replays, lineage as replay_lineage, replay as do_replay
 from .self_improve import SelfImprover
+from . import tools
 
 
 def _build_agent(repo: Path | None, cfg: Config | None = None) -> Agent:
@@ -134,11 +136,19 @@ def cmd_diary(args: argparse.Namespace) -> int:
         print(diary.summarize_recent(args.n))
     elif args.action == "milestones":
         for e in diary.milestones():
-            import time
             ts = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(e.get("ts", 0)))
             print(f"[{ts}] {e.get('content', '')}")
     elif args.action == "stats":
         print(json.dumps(diary.stats(), indent=2))
+    elif args.action == "seeds":
+        for e in diary.seeds(args.n):
+            ts = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(e.get("ts", 0)))
+            print(f"[{ts}] {e.get('content', '')}")
+    elif args.action == "seed":
+        # Plant a thought (inception). Optional --from records the seeder.
+        thought = " ".join(args.thought)
+        diary.write("seed", thought, source=getattr(args, "source", "human"))
+        print(f"seeded: {thought}")
     return 0
 
 
@@ -160,6 +170,36 @@ def cmd_verify(args: argparse.Namespace) -> int:
     ok, msg = ledger.verify()
     print(json.dumps({"ok": ok, "message": msg, "entries": len(ledger.entries())}, indent=2))
     return 0 if ok else 1
+
+
+def cmd_schedule(args: argparse.Namespace) -> int:
+    """Print drop-in scheduler commands (Windows Task Scheduler / cron)."""
+    cfg = Config.from_env()
+    repo = Path(args.repo).resolve() if args.repo else Path(cfg.repo_root).resolve()
+    script = repo / "scripts" / "heartbeat.py"
+    every = getattr(args, "every", 30)  # minutes
+    python = Path(sys.executable)
+
+    if sys.platform == "win32":
+        # PowerShell snippet.
+        ps = f"""# Run as Administrator in PowerShell
+$action = New-ScheduledTaskAction -Execute "{python}" -Argument '"{script}" --repo "{repo}"'
+$trigger = New-ScheduledTaskTrigger -Once -At (Get-Date) -RepetitionInterval (New-TimeSpan -Minutes {every})
+Register-ScheduledTask -TaskName "forkland-heartbeat" -Action $action -Trigger $trigger -Description "forkland self-evolution ({every}-min cadence)"
+"""
+        print(ps)
+    else:
+        cron_line = (
+            f"*/{every} * * * * cd {repo} && {python} {script} --repo {repo} "
+            f">> {repo}/.forkling/heartbeat.log 2>&1"
+        )
+        print("# Add to your crontab with: crontab -e")
+        print(cron_line)
+
+    print(f"\n# cadence: every {every} minutes")
+    print(f"# repo: {repo}")
+    print(f"# script: {script}")
+    return 0
 
 
 def cmd_ancestor(args: argparse.Namespace) -> int:
@@ -202,6 +242,94 @@ def cmd_ancestor(args: argparse.Namespace) -> int:
         completion = llm.complete(prompt=args.task, system=sys_prompt)
         print(f"[via {'ollama/' + completion.model if completion.used_llm else 'rule-based'}]")
         print(completion.text)
+        return 0
+
+    return 1
+
+
+def cmd_inception(args: argparse.Namespace) -> int:
+    """Inception triggers: ambient intrusive thoughts for the agent."""
+    cfg = Config.from_env()
+    repo = Path(args.repo).resolve() if getattr(args, "repo", None) else Path(cfg.repo_root).resolve()
+    inc = Inception(repo)
+
+    if args.action == "list":
+        if not inc.exists():
+            print(f"(no inception_triggers/ folder at {repo})")
+            return 0
+        for t in inc.list():
+            tags = ",".join(t.tags) if t.tags else "-"
+            wc = _word_count(t.thought)
+            print(f"{t.id:<12} [{tags}] {wc} words  by={t.planted_by}")
+            print(f"  tag: {t.git_tag or '(none)'}")
+            print(f"  file: {t.source_file}")
+        return 0
+
+    if args.action == "plant":
+        thought = args.thought if isinstance(args.thought, str) else " ".join(args.thought)
+        try:
+            t = inc.plant(
+                thought,
+                tags=args.tags,
+                planted_by=getattr(args, "planted_by", "human"),
+                tag_with_git=not getattr(args, "no_tag", False),
+            )
+        except ValueError as e:
+            print(f"FAIL: {e}", file=sys.stderr)
+            return 1
+        print(f"OK planted {t.id} ({_word_count(t.thought)} words) at {t.source_file}")
+        if t.git_tag:
+            print(f"  tagged {t.git_tag}")
+        return 0
+
+    if args.action == "validate":
+        path = Path(args.file)
+        if not path.is_file():
+            print(f"not a file: {path}", file=sys.stderr)
+            return 1
+        try:
+            obj = json.loads(path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as e:
+            print(f"✗ invalid JSON: {e}", file=sys.stderr)
+            return 1
+        ok, msg = inc.validate(obj)
+        if ok:
+            wc = _word_count(obj.get("thought", ""))
+            print(f"✓ valid ({wc} words)")
+            return 0
+        print(f"✗ {msg}", file=sys.stderr)
+        return 1
+
+    if args.action == "remove":
+        if inc.remove(args.id):
+            print(f"removed {args.id}")
+            return 0
+        print(f"no such trigger: {args.id}", file=sys.stderr)
+        return 1
+
+    if args.action == "show":
+        # Dump the ambient block (what the agent sees in its prompt).
+        print(inc.ambient_block())
+        return 0
+
+    if args.action == "stage":
+        if inc.stage(args.id):
+            print(f"staged {args.id}")
+            return 0
+        print(f"no such pending trigger: {args.id}", file=sys.stderr)
+        return 1
+
+    if args.action == "unstage":
+        if inc.unstage(args.id):
+            print(f"unstaged {args.id}")
+            return 0
+        print(f"no such staged trigger: {args.id}", file=sys.stderr)
+        return 1
+
+    if args.action == "staged":
+        for t in inc.staged():
+            tags = ",".join(t.tags) if t.tags else "-"
+            print(f"{t.id:<12} [{tags}] {t.planted_by}")
         return 0
 
     return 1
@@ -264,42 +392,94 @@ def cmd_heartbeat(args: argparse.Namespace) -> int:
 
     Designed to be invoked on a schedule (cron / Task Scheduler / Mavis cron).
     Zero MiniMax dependency — runs entirely on the local machine.
+    Acquires a per-repo lock so concurrent heartbeats don't race.
     """
-    import subprocess
+    from .locking import HeartbeatLock, LockBusy
     cfg = Config.from_env()
     repo = Path(args.repo).resolve() if args.repo else Path(cfg.repo_root).resolve()
     log_path = repo / ".forkling" / "heartbeat.log"
     log_path.parent.mkdir(parents=True, exist_ok=True)
 
-    steps = []
-    # 1. Self-improve (the actual evolution step).
-    if not args.skip_improve:
-        r = subprocess.run(
-            ["python", "-m", "forkling", "self-improve", "--repo", str(repo)],
-            cwd=repo, capture_output=True, text=True, timeout=900,
-        )
-        steps.append(("self-improve", r.returncode, (r.stdout + r.stderr)[-300:]))
-    # 2. Append a paper status block.
-    r = subprocess.run(
-        ["python", "-m", "forkling", "paper", "append"],
-        cwd=repo, capture_output=True, text=True, timeout=60,
-    )
-    steps.append(("paper.append", r.returncode, (r.stdout + r.stderr)[-200:]))
-    # 3. Verify the ledger.
-    r = subprocess.run(
-        ["python", "-m", "forkling", "verify"],
-        cwd=repo, capture_output=True, text=True, timeout=30,
-    )
-    steps.append(("verify", r.returncode, (r.stdout + r.stderr)[-200:]))
+    try:
+        lock = HeartbeatLock(repo)
+        lock.acquire()
+    except LockBusy as e:
+        out = {"ran_at": time.time(), "skipped": str(e), "steps": []}
+        with log_path.open("a", encoding="utf-8") as f:
+            f.write(json.dumps(out) + "\n")
+        print(json.dumps(out, indent=2))
+        return 1
 
-    out = {
-        "ran_at": time.time(),
-        "steps": [{"name": n, "ok": c == 0, "tail": t} for n, c, t in steps],
-    }
-    with log_path.open("a", encoding="utf-8") as f:
-        f.write(json.dumps(out) + "\n")
-    print(json.dumps(out, indent=2))
-    return 0 if all(c == 0 for _, c, _ in steps) else 1
+    try:
+        steps = []
+        # Refuse to run on detached HEAD (would orphan any commit).
+        try:
+            if tools.git_is_detached(repo):
+                out = {"ran_at": time.time(), "skipped": "HEAD is detached",
+                       "steps": []}
+                with log_path.open("a", encoding="utf-8") as f:
+                    f.write(json.dumps(out) + "\n")
+                print(json.dumps(out, indent=2))
+                return 1
+        except tools.ToolError:
+            pass
+
+        # Phase 0: HARD STOP for any pending inception triggers.
+        # The agent's current work pauses. Each trigger is force-
+        # acknowledged (response generated, logged to diary) before
+        # the heartbeat proceeds. This is the "dead-center" interrupt
+        # the user wanted — the second a trigger lands, it triggers.
+        cfg = Config.from_env()
+        inc = Inception(repo)
+        diary = Diary(Path(cfg.memory_dir) / "diary.jsonl")
+        llm = LLM(url=cfg.ollama_url, model=cfg.ollama_model, timeout=cfg.llm_timeout)
+        pending = inc.pending_count()
+        triggered_responses: list[dict] = []
+        if pending > 0:
+            diary.write("inception.interrupt",
+                        f"hard stop: {pending} trigger(s) found",
+                        count=pending)
+            triggered_responses = inc.process_all(llm, diary=diary)
+            diary.write("inception.recovered",
+                        f"processed {len(triggered_responses)} trigger(s); resuming work",
+                        count=len(triggered_responses))
+            steps.append(("inception.processed",
+                          0,
+                          f"{len(triggered_responses)} acknowledged; "
+                          f"dairy 'inception.recovered' logged"))
+
+        import subprocess
+        # 1. Self-improve (the actual evolution step).
+        if not args.skip_improve:
+            r = subprocess.run(
+                ["python", "-m", "forkling", "self-improve", "--repo", str(repo)],
+                cwd=repo, capture_output=True, text=True, timeout=900,
+            )
+            steps.append(("self-improve", r.returncode, (r.stdout + r.stderr)[-300:]))
+        # 2. Append a paper status block.
+        r = subprocess.run(
+            ["python", "-m", "forkling", "paper", "append"],
+            cwd=repo, capture_output=True, text=True, timeout=60,
+        )
+        steps.append(("paper.append", r.returncode, (r.stdout + r.stderr)[-200:]))
+        # 3. Verify the ledger.
+        r = subprocess.run(
+            ["python", "-m", "forkling", "verify"],
+            cwd=repo, capture_output=True, text=True, timeout=30,
+        )
+        steps.append(("verify", r.returncode, (r.stdout + r.stderr)[-200:]))
+
+        out = {
+            "ran_at": time.time(),
+            "inception_triggered": triggered_responses,
+            "steps": [{"name": n, "ok": c == 0, "tail": t} for n, c, t in steps],
+        }
+        with log_path.open("a", encoding="utf-8") as f:
+            f.write(json.dumps(out) + "\n")
+        print(json.dumps(out, indent=2))
+        return 0 if all(c == 0 for _, c, _ in steps) else 1
+    finally:
+        lock.release()
 
 
 import time  # for ancestor formatting
@@ -358,6 +538,10 @@ def build_parser() -> argparse.ArgumentParser:
     drsub.add_parser("tail", help="Show the last N entries.").add_argument("n", type=int, nargs="?", default=20)
     drsub.add_parser("milestones", help="Show only milestone entries.")
     drsub.add_parser("stats", help="Show diary stats.")
+    drsub.add_parser("seeds", help="Show planted seeds (inception thoughts).").add_argument("n", type=int, nargs="?", default=10)
+    ssub = drsub.add_parser("seed", help="Plant a thought the agent will reflect on during planning.")
+    ssub.add_argument("thought", nargs="+", help="The thought to plant.")
+    ssub.add_argument("--source", default="human", help="Who/what is planting the seed.")
     dr.set_defaults(func=cmd_diary)
 
     f = sub.add_parser("fitness", help="Compute current smartness + skill fitness from the capability ledger.")
@@ -404,6 +588,32 @@ def build_parser() -> argparse.ArgumentParser:
     hb.add_argument("--skip-improve", action="store_true",
                     help="Skip the self-improve step (useful for tests).")
     hb.set_defaults(func=cmd_heartbeat)
+
+    sch = sub.add_parser("schedule", help="Print drop-in scheduler commands for this OS.")
+    sch.add_argument("--repo", help="Repo root.")
+    sch.add_argument("--every", type=int, default=30, help="Cadence in minutes.")
+    sch.set_defaults(func=cmd_schedule)
+
+    inc = sub.add_parser("inception", help="Inception triggers — ambient intrusive thoughts.")
+    incsub = inc.add_subparsers(dest="action", required=True)
+    incsub.add_parser("list", help="List all triggers in inception_triggers/.").add_argument("--repo")
+    ipl = incsub.add_parser("plant", help="Plant a new trigger (must be >= 50 words).")
+    ipl.add_argument("thought", nargs="+", help="The thought (>= 50 words).")
+    ipl.add_argument("--tags", nargs="*", default=[], help="Tags for organization.")
+    ipl.add_argument("--planted-by", default="human")
+    ipl.add_argument("--no-tag", action="store_true", help="Skip creating a git tag.")
+    ipl.add_argument("--repo")
+    ival = incsub.add_parser("validate", help="Validate a trigger JSON file.")
+    ival.add_argument("file", help="Path to trigger JSON file.")
+    irm = incsub.add_parser("remove", help="Remove a trigger by id.")
+    irm.add_argument("id", help="Trigger id, e.g. 'trg-001'.")
+    incsub.add_parser("show", help="Print the ambient block the agent sees (no label).").add_argument("--repo")
+    isg = incsub.add_parser("stage", help="Move a trigger to staging/ so the agent won't see it.")
+    isg.add_argument("id")
+    ius = incsub.add_parser("unstage", help="Move a staged trigger back into the active folder.")
+    ius.add_argument("id")
+    incsub.add_parser("staged", help="List staged triggers.")
+    inc.set_defaults(func=cmd_inception)
 
     return p
 

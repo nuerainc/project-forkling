@@ -25,7 +25,10 @@ from typing import TYPE_CHECKING, Any
 from .llm import LLM
 
 if TYPE_CHECKING:
+    from .diary import Diary
     from .graveyard import Graveyard
+    from .inception import Inception
+    from pathlib import Path
 
 
 SYSTEM_PROMPT = """You are the planner of dogfood, a self-contained coding agent.
@@ -62,18 +65,34 @@ class Step:
 
 
 class Planner:
-    def __init__(self, llm: LLM, graveyard: "Graveyard | None" = None) -> None:
+    def __init__(self, llm: LLM, graveyard: "Graveyard | None" = None,
+                 diary: "Diary | None" = None,
+                 inception: "Inception | None" = None,
+                 repo_root: "Path | str | None" = None) -> None:
         self.llm = llm
         self.graveyard = graveyard
+        self.diary = diary
+        # If we get a path, lazily build an Inception handle. If we get
+        # an Inception instance directly, use it. If we get None and we
+        # have a repo_root, default to no inception (baseline).
+        if inception is None and repo_root is not None:
+            from .inception import Inception
+            inception = Inception(repo_root)
+        self.inception = inception
 
     def plan(self, task: str) -> list[Step]:
-        # Inject recent failures into the prompt so the LLM learns from them.
-        graveyard_hint = ""
+        # Note: inception triggers are NOT injected into the prompt.
+        # They land mid-flight via the heartbeat's process_all() phase
+        # (see forkling/__main__.py::cmd_heartbeat). That is the
+        # interruptive path — the agent's current work stops, the
+        # trigger is force-acknowledged, and the agent resumes.
+        # The planner is left clean.
+        prompt_parts: list[str] = [task]
         if self.graveyard is not None:
-            graveyard_hint = self.graveyard.as_prompt_excerpt(n=5)
-        prompt = task
-        if graveyard_hint:
-            prompt = f"{task}\n\n{graveyard_hint}"
+            gh = self.graveyard.as_prompt_excerpt(n=5)
+            if gh:
+                prompt_parts.append(gh)
+        prompt = "\n\n".join(prompt_parts)
         completion = self.llm.complete(prompt=prompt, system=SYSTEM_PROMPT)
         steps = self._parse_llm_json(completion.text) if completion.used_llm else []
         if not steps:

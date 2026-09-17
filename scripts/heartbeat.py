@@ -55,6 +55,41 @@ def main() -> int:
                       "tail": (r.stdout + r.stderr)[-400:],
                       "rc": r.returncode})
 
+    # Phase 0: hard stop for any pending inception triggers.
+    # The agent's work pauses; each trigger is force-acknowledged via
+    # the LLM and logged to the diary before the heartbeat proceeds.
+    try:
+        from forkling.config import Config as _Cfg
+        from forkling.diary import Diary as _Diary
+        from forkling.inception import Inception as _Inc
+        from forkling.llm import LLM as _LLM
+        cfg = _Cfg.from_env()
+        inc = _Inc(repo)
+        diary = _Diary(Path(cfg.memory_dir) / "diary.jsonl")
+        llm = _LLM(url=cfg.ollama_url, model=cfg.ollama_model,
+                    timeout=cfg.llm_timeout)
+        pending = inc.pending_count()
+        if pending > 0:
+            diary.write("inception.interrupt",
+                        f"hard stop: {pending} trigger(s) found", count=pending)
+            responses = inc.process_all(llm, diary=diary)
+            diary.write("inception.recovered",
+                        f"processed {len(responses)} trigger(s); resuming work",
+                        count=len(responses))
+            steps.append({
+                "name": "inception.processed",
+                "ok": True,
+                "tail": f"{len(responses)} trigger(s) acknowledged",
+                "rc": 0,
+            })
+    except Exception as e:
+        steps.append({
+            "name": "inception.processed",
+            "ok": False,
+            "tail": f"phase-0 error: {e}",
+            "rc": 1,
+        })
+
     # 1. self-improve (the heavy step).
     if not args.skip_improve:
         run("self-improve", "python", "-m", "forkling", "self-improve",
