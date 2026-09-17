@@ -129,6 +129,27 @@ runs them for N generations, and ranks by fitness. The "control"
 variant is **Spoonica**, the conservative sister. Hybrid is
 **Sporklyn**, sharpest is **Knifling**. Coming after v0.2.
 
+## Forkland & Family (federated, opt-in)
+
+A "family" is just N independent forkling instances — each on its own
+machine, repo, or worktree, each evolving on its own. The
+`forkling/family.py` module is a registry (a phone book, not a
+hierarchy) so the forks can know about each other.
+
+We make **coordination easy** but **enforce nothing**. In real life,
+organisms that can share information tend to do better than those that
+can't — but we don't hard-code that preference. Each fork discovers its
+own disposition toward its siblings: it may cozy up, keep its
+distance, or ignore them. The fitness function does not reward or
+punish either behavior.
+
+```bash
+forkling family register Forkland /path/to/forkland
+forkling family register Spoonica /path/to/spoonica
+forkling family list
+forkling family sync Forkland   # copy Forkland's ledger for study
+```
+
 ## License
 
 MIT. See `LICENSE`.

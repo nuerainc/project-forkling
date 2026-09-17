@@ -13,10 +13,12 @@ from .capability import CapabilityLedger
 from .config import Config
 from .diary import Diary
 from .evolution import Evolution
+from .family import Family
 from .graveyard import Graveyard
 from .grants import ProjectProfile, draft as draft_grant, match as match_grants
 from .llm import LLM
 from .memory import Memory
+from .paper import render as render_paper, update as update_paper, append_status as append_paper_status
 from .planner import Planner
 from .replay import diff_replays, lineage as replay_lineage, replay as do_replay
 from .self_improve import SelfImprover
@@ -205,6 +207,101 @@ def cmd_ancestor(args: argparse.Namespace) -> int:
     return 1
 
 
+def cmd_family(args: argparse.Namespace) -> int:
+    cfg = Config.from_env()
+    fam = Family(Path(cfg.memory_dir) / "family.json")
+    if args.action == "list":
+        for m in fam.refresh():
+            seen = m.last_seen_sha[:7] if m.last_seen_sha else "?"
+            ts = time.strftime("%Y-%m-%d %H:%M", time.localtime(m.last_seen_ts)) if m.last_seen_ts else "never"
+            print(f"{m.name:<14} {m.repo}")
+            print(f"  branch={m.branch:<8} head={seen}  last_seen={ts}")
+            if m.note:
+                print(f"  note: {m.note}")
+        return 0
+    if args.action == "register":
+        m = fam.register(name=args.name, repo=args.repo,
+                         branch=getattr(args, "branch", "main"),
+                         note=getattr(args, "note", ""))
+        print(f"registered {m.name} -> {m.repo}")
+        return 0
+    if args.action == "remove":
+        if fam.remove(args.name):
+            print(f"removed {args.name}")
+            return 0
+        print(f"no such member: {args.name}", file=sys.stderr)
+        return 1
+    if args.action == "sync":
+        target = fam.sync_ledger(args.peer)
+        if target:
+            print(f"copied {args.peer}'s ledger -> {target}")
+            return 0
+        print(f"could not sync with {args.peer} (peer unknown or ledger missing)",
+              file=sys.stderr)
+        return 1
+    return 1
+
+
+def cmd_paper(args: argparse.Namespace) -> int:
+    cfg = Config.from_env()
+    paper_path = getattr(args, "path", None) or "paper/paper.md"
+    if args.action == "render":
+        print(render_paper(cfg.memory_dir))
+        return 0
+    if args.action == "update":
+        out = update_paper(cfg.memory_dir, paper_path)
+        print(f"wrote {out}")
+        return 0
+    if args.action == "append":
+        out = append_paper_status(cfg.memory_dir, paper_path)
+        print(f"appended status to {out}")
+        return 0
+    return 1
+
+
+def cmd_heartbeat(args: argparse.Namespace) -> int:
+    """Run one heartbeat: self-improve + paper update + grants list + diary rollup.
+
+    Designed to be invoked on a schedule (cron / Task Scheduler / Mavis cron).
+    Zero MiniMax dependency — runs entirely on the local machine.
+    """
+    import subprocess
+    cfg = Config.from_env()
+    repo = Path(args.repo).resolve() if args.repo else Path(cfg.repo_root).resolve()
+    log_path = repo / ".forkling" / "heartbeat.log"
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+
+    steps = []
+    # 1. Self-improve (the actual evolution step).
+    if not args.skip_improve:
+        r = subprocess.run(
+            ["python", "-m", "forkling", "self-improve", "--repo", str(repo)],
+            cwd=repo, capture_output=True, text=True, timeout=900,
+        )
+        steps.append(("self-improve", r.returncode, (r.stdout + r.stderr)[-300:]))
+    # 2. Append a paper status block.
+    r = subprocess.run(
+        ["python", "-m", "forkling", "paper", "append"],
+        cwd=repo, capture_output=True, text=True, timeout=60,
+    )
+    steps.append(("paper.append", r.returncode, (r.stdout + r.stderr)[-200:]))
+    # 3. Verify the ledger.
+    r = subprocess.run(
+        ["python", "-m", "forkling", "verify"],
+        cwd=repo, capture_output=True, text=True, timeout=30,
+    )
+    steps.append(("verify", r.returncode, (r.stdout + r.stderr)[-200:]))
+
+    out = {
+        "ran_at": time.time(),
+        "steps": [{"name": n, "ok": c == 0, "tail": t} for n, c, t in steps],
+    }
+    with log_path.open("a", encoding="utf-8") as f:
+        f.write(json.dumps(out) + "\n")
+    print(json.dumps(out, indent=2))
+    return 0 if all(c == 0 for _, c, _ in steps) else 1
+
+
 import time  # for ancestor formatting
 
 
@@ -278,6 +375,35 @@ def build_parser() -> argparse.ArgumentParser:
     cns = ansub.add_parser("consult", help="Ask 'how would the precursor have done this?'")
     cns.add_argument("task", help="Natural-language task.")
     an.set_defaults(func=cmd_ancestor)
+
+    fam = sub.add_parser("family", help="Forkland & Family: federated registry of sovereign forks.")
+    famsub = fam.add_subparsers(dest="action", required=True)
+    famsub.add_parser("list", help="List all family members.")
+    freg = famsub.add_parser("register", help="Register a new family member.")
+    freg.add_argument("name", help="Name, e.g. 'Forkland' or 'Spoonica'.")
+    freg.add_argument("repo", help="Absolute path to the fork's repo.")
+    freg.add_argument("--branch", default="main")
+    freg.add_argument("--note", default="")
+    frm = famsub.add_parser("remove", help="Remove a family member from the registry.")
+    frm.add_argument("name")
+    fsyn = famsub.add_parser("sync", help="Opt-in: copy a peer's ledger for study (never auto-merge).")
+    fsyn.add_argument("peer", help="Name of the family member.")
+    fam.set_defaults(func=cmd_family)
+
+    pap = sub.add_parser("paper", help="forkland drafts its own paper sections.")
+    papsub = pap.add_subparsers(dest="action", required=True)
+    papsub.add_parser("render", help="Render the full paper to stdout.")
+    papup = papsub.add_parser("update", help="Render and write paper/paper.md.")
+    papup.add_argument("--path", default=None)
+    papap = papsub.add_parser("append", help="Append a status block to the paper.")
+    papap.add_argument("--path", default=None)
+    pap.set_defaults(func=cmd_paper)
+
+    hb = sub.add_parser("heartbeat", help="One autonomous beat: self-improve + paper update + verify.")
+    hb.add_argument("--repo", help="Repo root (defaults to cwd).")
+    hb.add_argument("--skip-improve", action="store_true",
+                    help="Skip the self-improve step (useful for tests).")
+    hb.set_defaults(func=cmd_heartbeat)
 
     return p
 
