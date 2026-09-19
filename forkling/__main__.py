@@ -29,6 +29,7 @@ from . import tools
 from . import desktop as _desktop
 from . import tray as _tray
 from . import daemon as _daemon
+from . import evolve as _evolve
 
 
 def _build_agent(repo: Path | None, cfg: Config | None = None) -> Agent:
@@ -651,6 +652,61 @@ def cmd_daemon(args: argparse.Namespace) -> int:
     return 1
 
 
+def cmd_evolve(args: argparse.Namespace) -> int:
+    """Continuous natural-selection loop. No idle waiting.
+
+    start  - block, run one generation back-to-back. Each generation is
+             a real self-improve attempt: propose + pytest + commit/rollback.
+             Stops on SIGINT / stop-flag / --max-attempts.
+    stop   - tell a running evolver to exit gracefully.
+    status - print whether the evolver is running, generations attempted,
+             committed, rolled_back, noop counts.
+    """
+    cfg = Config.from_env()
+    repo = Path(args.repo).resolve() if args.repo else Path(cfg.repo_root).resolve()
+
+    if args.action == "start":
+        if _evolve.is_running(repo):
+            print(f"evolve already running for {repo} "
+                  f"(see {_evolve.PID_FILENAME})", file=sys.stderr)
+            return 1
+        e = _evolve.Evolver(
+            cfg, repo,
+            max_attempts=getattr(args, "max_attempts", None),
+        )
+        return e.run_forever()
+
+    if args.action == "stop":
+        if _evolve.request_stop(repo):
+            print(f"stop signal sent to evolver for {repo}")
+            return 0
+        print(f"no evolver running for {repo}", file=sys.stderr)
+        return 1
+
+    if args.action == "status":
+        running = _evolve.is_running(repo)
+        status = _evolve.read_status(repo)
+        if running and status:
+            uptime = time.time() - status.get("started_at", time.time())
+            print(json.dumps({
+                "running": True,
+                "pid": status.get("pid"),
+                "attempt_count": status.get("attempt_count"),
+                "committed_count": status.get("committed_count"),
+                "rolled_back_count": status.get("rolled_back_count"),
+                "noop_count": status.get("noop_count"),
+                "last_target": status.get("last_target"),
+                "last_outcome": status.get("last_outcome"),
+                "uptime_seconds": int(uptime),
+                "repo": status.get("repo"),
+            }, indent=2))
+            return 0
+        print(json.dumps({"running": False, "repo": str(repo)}, indent=2))
+        return 1
+
+    return 1
+
+
 def cmd_heartbeat(args: argparse.Namespace) -> int:
     """Run one heartbeat: self-improve + paper update + grants list + diary rollup.
 
@@ -937,6 +993,24 @@ def build_parser() -> argparse.ArgumentParser:
                               help="Print daemon state (running, uptime, ticks).")
     daest.add_argument("--repo", help="Repo root (defaults to cwd).")
     dae.set_defaults(func=cmd_daemon)
+
+    ev = sub.add_parser("evolve",
+                        help="Continuous natural-selection loop. No idle waiting.")
+    evsub = ev.add_subparsers(dest="action", required=True)
+    evs = evsub.add_parser("start",
+                           help="Block, run generations back-to-back until "
+                                "SIGINT/stop-flag/max-attempts.")
+    evs.add_argument("--repo", help="Repo root (defaults to cwd).")
+    evs.add_argument("--max-attempts", type=int, default=None,
+                     help="Exit after this many generations (useful for tests).")
+    evst = evsub.add_parser("stop",
+                            help="Tell a running evolver to exit gracefully.")
+    evst.add_argument("--repo", help="Repo root (defaults to cwd).")
+    evstt = evsub.add_parser("status",
+                             help="Print evolver state (running, generations, "
+                                  "committed, rolled_back, noop).")
+    evstt.add_argument("--repo", help="Repo root (defaults to cwd).")
+    ev.set_defaults(func=cmd_evolve)
 
     return p
 
