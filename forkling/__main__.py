@@ -26,6 +26,7 @@ from .replay import diff_replays, lineage as replay_lineage, replay as do_replay
 from .self_improve import SelfImprover
 from .trace import Trace
 from . import tools
+from . import desktop as _desktop
 
 
 def _build_agent(repo: Path | None, cfg: Config | None = None) -> Agent:
@@ -578,6 +579,13 @@ def cmd_export_dataset(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_desktop(args: argparse.Namespace) -> int:
+    """Launch the desktop UI (Tk). Falls back to a friendly message if no display."""
+    cfg = Config.from_env()
+    repo = Path(args.repo).resolve() if args.repo else Path(cfg.repo_root).resolve()
+    return _desktop.launch(cfg, repo, refresh_seconds=args.refresh)
+
+
 def cmd_heartbeat(args: argparse.Namespace) -> int:
     """Run one heartbeat: self-improve + paper update + grants list + diary rollup.
 
@@ -828,6 +836,13 @@ def build_parser() -> argparse.ArgumentParser:
     exp.add_argument("--stage", default=None,
                      help="Override the stage label inside the archive.")
     exp.set_defaults(func=cmd_export_dataset)
+
+    desk = sub.add_parser("desktop",
+                          help="Launch the desktop UI (Tk) showing runtime health.")
+    desk.add_argument("--repo", help="Repo root (defaults to cwd).")
+    desk.add_argument("--refresh", type=int, default=15,
+                      help="Auto-refresh interval in seconds (default 15).")
+    desk.set_defaults(func=cmd_desktop)
 
     return p
 
