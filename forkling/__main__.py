@@ -27,6 +27,7 @@ from .self_improve import SelfImprover
 from .trace import Trace
 from . import tools
 from . import desktop as _desktop
+from . import tray as _tray
 
 
 def _build_agent(repo: Path | None, cfg: Config | None = None) -> Agent:
@@ -586,6 +587,15 @@ def cmd_desktop(args: argparse.Namespace) -> int:
     return _desktop.launch(cfg, repo, refresh_seconds=args.refresh)
 
 
+def cmd_tray(args: argparse.Namespace) -> int:
+    """Launch the Windows system tray icon (ctypes/shell32). Polls heartbeat
+    status in the background; pops up a balloon notification on YELLOW/RED
+    transition. Right-click for actions."""
+    cfg = Config.from_env()
+    repo = Path(args.repo).resolve() if args.repo else Path(cfg.repo_root).resolve()
+    return _tray.launch(cfg, repo, refresh_seconds=args.refresh)
+
+
 def cmd_heartbeat(args: argparse.Namespace) -> int:
     """Run one heartbeat: self-improve + paper update + grants list + diary rollup.
 
@@ -843,6 +853,14 @@ def build_parser() -> argparse.ArgumentParser:
     desk.add_argument("--refresh", type=int, default=15,
                       help="Auto-refresh interval in seconds (default 15).")
     desk.set_defaults(func=cmd_desktop)
+
+    tray = sub.add_parser("tray",
+                          help="Run in Windows system tray (ctypes/shell32). "
+                               "Pops notifications on heartbeat YELLOW/RED.")
+    tray.add_argument("--repo", help="Repo root (defaults to cwd).")
+    tray.add_argument("--refresh", type=int, default=15,
+                      help="Status refresh interval in seconds (default 15).")
+    tray.set_defaults(func=cmd_tray)
 
     return p
 
