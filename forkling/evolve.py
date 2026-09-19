@@ -64,10 +64,17 @@ class Evolver:
     """Continuous natural-selection loop. No idle waiting."""
 
     def __init__(self, cfg: Config, repo: Path, *,
-                 max_attempts: int | None = None) -> None:
+                 max_attempts: int | None = None,
+                 model: str | None = None) -> None:
         self.cfg = cfg
         self.repo = repo
         self.max_attempts = max_attempts
+        # Per-fork model override; falls back to cfg.ollama_model.
+        self.model_override = model
+        if model:
+            # Also patch the live Config so every LLM client we build
+            # below uses this model.
+            self.cfg.ollama_model = model
 
         self._stop_event = threading.Event()
         self._started_at = time.time()

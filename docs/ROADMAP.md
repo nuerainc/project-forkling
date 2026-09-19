@@ -158,6 +158,36 @@ the largest known open-data study of self-improving agents." The
 sovereignty rule is preserved by making the cross-fork studies
 opt-in and by never pooling ledgers into a shared fitness score.
 
+### 6. Model-size A/B study (stage 4 — mid-year)
+
+The `forkling evolve` loop makes per-fork model choice trivial: each
+family member can run on a different Ollama model, all gated by the
+same `pytest -q` selection mechanism, all measured against the same
+target files. This unlocks a pre-registered experiment:
+
+| Fork | Model | Role |
+|---|---|---|
+| Forkland Forkling | qwen3:4b | primary control — current behavior |
+| Spoonica | qwen3:4b | baseline control — no triggers |
+| Sporklyn | qwen3:1.7b | smaller model, higher cadence hypothesis |
+| Knifling | qwen2.5-coder:7b | bigger model, lower cadence hypothesis |
+
+Pre-registered prediction (day 180):
+
+- **Sporklyn > Knifling on `commits_per_hour`**: smaller model,
+  more generations, more chances for selection to find viable
+  changes.
+- **Knifling > Sporklyn on `commit_rate` and patch depth**: bigger
+  model, fewer but better patches.
+
+Both can be true simultaneously. If the data confirms it, the
+year-1 paper has a real result for natural-selection modeling:
+**for self-improving agents gated by an external test suite,
+generation count dominates generation quality for adaptation speed.**
+
+See `docs/MODELS.md` for the full model-selection guide and the
+tradeoff matrix.
+
 ## Implementation status (today)
 
 | Artifact | Status |

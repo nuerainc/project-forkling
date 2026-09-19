@@ -673,6 +673,7 @@ def cmd_evolve(args: argparse.Namespace) -> int:
         e = _evolve.Evolver(
             cfg, repo,
             max_attempts=getattr(args, "max_attempts", None),
+            model=getattr(args, "model", None),
         )
         return e.run_forever()
 
@@ -1003,6 +1004,10 @@ def build_parser() -> argparse.ArgumentParser:
     evs.add_argument("--repo", help="Repo root (defaults to cwd).")
     evs.add_argument("--max-attempts", type=int, default=None,
                      help="Exit after this many generations (useful for tests).")
+    evs.add_argument("--model", default=None,
+                     help="Ollama model to use (default: FORKLING_OLLAMA_MODEL "
+                          "or 'qwen3:4b'). Lets each family fork pick its own "
+                          "model size for the model-size A/B study.")
     evst = evsub.add_parser("stop",
                             help="Tell a running evolver to exit gracefully.")
     evst.add_argument("--repo", help="Repo root (defaults to cwd).")

@@ -1,0 +1,16 @@
+[
+  {
+    "model": "qwen3:4b",
+    "used_llm": false,
+    "elapsed_seconds": 122.11,
+    "error": "TimeoutError: timed out",
+    "output_first_300": "{\"kind\": \"noop\", \"reason\": \"rule-based fallback: no edit proposed\"}"
+  },
+  {
+    "model": "llama3.2:3b",
+    "used_llm": true,
+    "elapsed_seconds": 11.01,
+    "error": null,
+    "output_first_300": "{\"kind\": \"noop\", \"reason\": \"No obvious opportunity to improve the logic, and adding a new import or line is unnecessary\"}"
+  }
+]
