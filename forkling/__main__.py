@@ -28,6 +28,7 @@ from .trace import Trace
 from . import tools
 from . import desktop as _desktop
 from . import tray as _tray
+from . import daemon as _daemon
 
 
 def _build_agent(repo: Path | None, cfg: Config | None = None) -> Agent:
@@ -596,6 +597,60 @@ def cmd_tray(args: argparse.Namespace) -> int:
     return _tray.launch(cfg, repo, refresh_seconds=args.refresh)
 
 
+def cmd_daemon(args: argparse.Namespace) -> int:
+    """Long-running heartbeat scheduler.
+
+    start  - block until SIGINT / stop-flag / max-ticks, run heartbeat
+             every N seconds (default 1800 = 30 min)
+    stop   - tell a running daemon to exit gracefully
+    status - print whether the daemon is running, uptime, tick count,
+             last-tick result
+    """
+    cfg = Config.from_env()
+    repo = Path(args.repo).resolve() if args.repo else Path(cfg.repo_root).resolve()
+
+    if args.action == "start":
+        if _daemon.is_running(repo):
+            print(f"daemon already running for {repo} "
+                  f"(see {_daemon.PID_FILENAME})", file=sys.stderr)
+            return 1
+        d = _daemon.Daemon(
+            cfg, repo,
+            every_seconds=getattr(args, "every", 1800),
+            max_ticks=getattr(args, "max_ticks", None),
+            skip_improve=getattr(args, "skip_improve", False),
+            restart_on_failure=getattr(args, "restart_on_failure", False),
+        )
+        return d.run_forever()
+
+    if args.action == "stop":
+        if _daemon.request_stop(repo):
+            print(f"stop signal sent to daemon for {repo}")
+            return 0
+        print(f"no daemon running for {repo}", file=sys.stderr)
+        return 1
+
+    if args.action == "status":
+        running = _daemon.is_running(repo)
+        status = _daemon.read_status(repo)
+        if running and status:
+            uptime = time.time() - status.get("started_at", time.time())
+            print(json.dumps({
+                "running": True,
+                "pid": status.get("pid"),
+                "tick_count": status.get("tick_count"),
+                "last_tick_ok": status.get("last_tick_ok"),
+                "every_seconds": status.get("every_seconds"),
+                "uptime_seconds": int(uptime),
+                "repo": status.get("repo"),
+            }, indent=2))
+            return 0
+        print(json.dumps({"running": False, "repo": str(repo)}, indent=2))
+        return 1
+
+    return 1
+
+
 def cmd_heartbeat(args: argparse.Namespace) -> int:
     """Run one heartbeat: self-improve + paper update + grants list + diary rollup.
 
@@ -861,6 +916,27 @@ def build_parser() -> argparse.ArgumentParser:
     tray.add_argument("--refresh", type=int, default=15,
                       help="Status refresh interval in seconds (default 15).")
     tray.set_defaults(func=cmd_tray)
+
+    dae = sub.add_parser("daemon",
+                         help="Persistent heartbeat scheduler (in-process loop).")
+    daesub = dae.add_subparsers(dest="action", required=True)
+    daes = daesub.add_parser("start", help="Block and run heartbeats on a schedule.")
+    daes.add_argument("--repo", help="Repo root (defaults to cwd).")
+    daes.add_argument("--every", type=int, default=1800,
+                      help="Heartbeat cadence in seconds (default 1800 = 30 min).")
+    daes.add_argument("--max-ticks", type=int, default=None,
+                      help="Exit after this many ticks (useful for tests).")
+    daes.add_argument("--skip-improve", action="store_true",
+                      help="Pass --skip-improve through to each heartbeat tick.")
+    daes.add_argument("--restart-on-failure", action="store_true",
+                      help="Mark a failed heartbeat tick fatal (exits the daemon).")
+    daestop = daesub.add_parser("stop",
+                                help="Tell a running daemon to exit gracefully.")
+    daestop.add_argument("--repo", help="Repo root (defaults to cwd).")
+    daest = daesub.add_parser("status",
+                              help="Print daemon state (running, uptime, ticks).")
+    daest.add_argument("--repo", help="Repo root (defaults to cwd).")
+    dae.set_defaults(func=cmd_daemon)
 
     return p
 
