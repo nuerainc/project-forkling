@@ -29,7 +29,12 @@ class Config:
     repo_root: str = "."                 # working directory of the agent
     memory_dir: str = "~/.forkling"      # where persistent state lives
     ollama_url: str = "http://localhost:11434"
-    ollama_model: str = "qwen3:4b"       # any local model works; small is fine
+    # Default model chosen from the user's hardware benchmark (see
+    # .forkling/model-benchmark.json): on CPU-only Ollama installs,
+    # llama3.2:3b is ~10x faster than qwen3:4b with comparable output
+    # quality, so it's the real default. Override per-fork with
+    # FORKLING_OLLAMA_MODEL or the `--model` flag on `forkling evolve`.
+    ollama_model: str = "llama3.2:3b"
     llm_timeout: int = 120               # seconds for one completion
     max_steps: int = 20                   # hard cap on plan length per run
     test_command: str = "pytest -q"      # gate that decides ship-vs-rollback
@@ -42,7 +47,7 @@ class Config:
             repo_root=_env("FORKLING_REPO", "."),
             memory_dir=_env("FORKLING_MEMORY", "~/.forkling"),
             ollama_url=_env("FORKLING_OLLAMA_URL", "http://localhost:11434"),
-            ollama_model=_env("FORKLING_OLLAMA_MODEL", "qwen3:4b"),
+            ollama_model=_env("FORKLING_OLLAMA_MODEL", "llama3.2:3b"),
             llm_timeout=_env_int("FORKLING_LLM_TIMEOUT", 120),
             max_steps=_env_int("FORKLING_MAX_STEPS", 20),
             test_command=_env("FORKLING_TEST", "pytest -q"),
