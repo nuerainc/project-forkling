@@ -42,8 +42,16 @@ import struct
 import sys
 import threading
 import time
-from ctypes import wintypes
 from pathlib import Path
+
+# ``ctypes.wintypes`` exists on every platform as a stub, but only has
+# useful symbols on Windows. We import it lazily so non-Windows CI can
+# still import this module (for the constant + cross-platform-fallback
+# tests) without exploding.
+if sys.platform == "win32":
+    from ctypes import wintypes  # noqa: F401
+else:
+    wintypes = None  # type: ignore[assignment]
 
 from . import desktop as _desktop
 from .config import Config
@@ -113,115 +121,142 @@ NID_W_STRUCT = (
 )
 
 # We don't really need the union semantics — define a flat struct.
-class NOTIFYICONDATAW(ctypes.Structure):
-    _fields_ = [
-        ("cbSize", wintypes.DWORD),
-        ("hWnd", wintypes.HWND),
-        ("uID", wintypes.UINT),
-        ("uFlags", wintypes.UINT),
-        ("uCallbackMessage", wintypes.UINT),
-        ("hIcon", wintypes.HICON),
-        ("szTip", ctypes.c_wchar * 128),
-        ("dwState", wintypes.DWORD),
-        ("dwStateMask", wintypes.DWORD),
-        ("szInfo", ctypes.c_wchar * 256),
-        ("uTimeoutOrVersion", wintypes.UINT),
-        ("szInfoTitle", ctypes.c_wchar * 64),
-        ("dwInfoFlags", wintypes.DWORD),
-        ("guidItem", ctypes.c_byte * 16),
-        ("hBalloonIcon", wintypes.HICON),
-    ]
+# All of the Win32 struct + DLL handle + prototype setup below is
+# gated on Windows. On non-Windows the module still loads so the
+# constants (IDM_*, WM_*, etc.) and the cross-platform ``launch()``
+# fallback are usable, and tests that only touch the constants /
+# helper / launch path run cleanly.
+if sys.platform == "win32":
+    class NOTIFYICONDATAW(ctypes.Structure):
+        _fields_ = [
+            ("cbSize", wintypes.DWORD),
+            ("hWnd", wintypes.HWND),
+            ("uID", wintypes.UINT),
+            ("uFlags", wintypes.UINT),
+            ("uCallbackMessage", wintypes.UINT),
+            ("hIcon", wintypes.HICON),
+            ("szTip", ctypes.c_wchar * 128),
+            ("dwState", wintypes.DWORD),
+            ("dwStateMask", wintypes.DWORD),
+            ("szInfo", ctypes.c_wchar * 256),
+            ("uTimeoutOrVersion", wintypes.UINT),
+            ("szInfoTitle", ctypes.c_wchar * 64),
+            ("dwInfoFlags", wintypes.DWORD),
+            ("guidItem", ctypes.c_byte * 16),
+            ("hBalloonIcon", wintypes.HICON),
+        ]
 
 
-# ---- module-level Win32 handles ------------------------------------------
+    # ---- module-level Win32 handles --------------------------------------
 
-_user32 = ctypes.WinDLL("user32", use_last_error=True)
-_shell32 = ctypes.WinDLL("shell32", use_last_error=True)
-_kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
-
-
-LRESULT = ctypes.c_ssize_t
-WNDPROC = ctypes.WINFUNCTYPE(LRESULT, wintypes.HWND, wintypes.UINT,
-                             wintypes.WPARAM, wintypes.LPARAM)
+    _user32 = ctypes.WinDLL("user32", use_last_error=True)
+    _shell32 = ctypes.WinDLL("shell32", use_last_error=True)
+    _kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
 
 
-class WNDCLASSEXW(ctypes.Structure):
-    _fields_ = [
-        ("cbSize", wintypes.UINT),
-        ("style", wintypes.UINT),
-        ("lpfnWndProc", WNDPROC),
-        ("cbClsExtra", ctypes.c_int),
-        ("cbWndExtra", ctypes.c_int),
-        ("hInstance", wintypes.HINSTANCE),
-        ("hIcon", wintypes.HICON),
-        ("hCursor", wintypes.HANDLE),
-        ("hbrBackground", wintypes.HANDLE),
-        ("lpszMenuName", wintypes.LPCWSTR),
-        ("lpszClassName", wintypes.LPCWSTR),
-        ("hIconSm", wintypes.HICON),
-    ]
+    LRESULT = ctypes.c_ssize_t
+    WNDPROC = ctypes.WINFUNCTYPE(LRESULT, wintypes.HWND, wintypes.UINT,
+                                 wintypes.WPARAM, wintypes.LPARAM)
 
 
-class MSG(ctypes.Structure):
-    _fields_ = [
-        ("hWnd", wintypes.HWND),
-        ("message", wintypes.UINT),
-        ("wParam", wintypes.WPARAM),
-        ("lParam", wintypes.LPARAM),
-        ("time", wintypes.DWORD),
-        ("pt", wintypes.POINT),
-    ]
+    class WNDCLASSEXW(ctypes.Structure):
+        _fields_ = [
+            ("cbSize", wintypes.UINT),
+            ("style", wintypes.UINT),
+            ("lpfnWndProc", WNDPROC),
+            ("cbClsExtra", ctypes.c_int),
+            ("cbWndExtra", ctypes.c_int),
+            ("hInstance", wintypes.HINSTANCE),
+            ("hIcon", wintypes.HICON),
+            ("hCursor", wintypes.HANDLE),
+            ("hbrBackground", wintypes.HANDLE),
+            ("lpszMenuName", wintypes.LPCWSTR),
+            ("lpszClassName", wintypes.LPCWSTR),
+            ("hIconSm", wintypes.HICON),
+        ]
 
 
-# Function prototypes we use.
-_user32.DefWindowProcW.restype = LRESULT
-_user32.DefWindowProcW.argtypes = [wintypes.HWND, wintypes.UINT,
-                                   wintypes.WPARAM, wintypes.LPARAM]
-_user32.RegisterClassExW.restype = wintypes.ATOM
-_user32.RegisterClassExW.argtypes = [ctypes.POINTER(WNDCLASSEXW)]
-_user32.CreateWindowExW.restype = wintypes.HWND
-_user32.CreateWindowExW.argtypes = [wintypes.DWORD, wintypes.LPCWSTR,
-                                    wintypes.LPCWSTR, wintypes.DWORD,
-                                    ctypes.c_int, ctypes.c_int,
-                                    ctypes.c_int, ctypes.c_int,
-                                    wintypes.HWND, wintypes.HMENU,
-                                    wintypes.HINSTANCE, wintypes.LPVOID]
-_user32.DestroyWindow.argtypes = [wintypes.HWND]
-_user32.DestroyWindow.restype = wintypes.BOOL
-_user32.LoadIconW.restype = wintypes.HICON
-_user32.LoadIconW.argtypes = [wintypes.HINSTANCE, wintypes.LPCWSTR]
-_user32.PostQuitMessage.argtypes = [c_int := ctypes.c_int]
-_user32.GetMessageW.restype = wintypes.BOOL
-_user32.GetMessageW.argtypes = [ctypes.POINTER(MSG), wintypes.HWND,
-                                wintypes.UINT, wintypes.UINT]
-_user32.TranslateMessage.argtypes = [ctypes.POINTER(MSG)]
-_user32.DispatchMessageW.argtypes = [ctypes.POINTER(MSG)]
-_user32.DispatchMessageW.restype = LRESULT
-_user32.SetTimer.argtypes = [wintypes.HWND, wintypes.UINT,
-                             wintypes.UINT, wintypes.LPVOID]
-_user32.SetTimer.restype = wintypes.UINT
-_user32.KillTimer.argtypes = [wintypes.HWND, wintypes.UINT]
-_user32.TrackPopupMenu.argtypes = [wintypes.HMENU, wintypes.UINT,
-                                   ctypes.c_int, ctypes.c_int,
-                                   ctypes.c_int, wintypes.HWND,
-                                   wintypes.LPVOID]
-_user32.TrackPopupMenu.restype = wintypes.BOOL
-_user32.GetCursorPos.argtypes = [ctypes.POINTER(wintypes.POINT)]
-_user32.SetForegroundWindow.argtypes = [wintypes.HWND]
-_user32.CreatePopupMenu.restype = wintypes.HMENU
-_user32.AppendMenuW.argtypes = [wintypes.HMENU, wintypes.UINT,
-                                wintypes.UINT, wintypes.LPCWSTR]
-_user32.EnableMenuItem.argtypes = [wintypes.HMENU, wintypes.UINT,
-                                   wintypes.UINT]
-_user32.SetMenuDefaultItem.argtypes = [wintypes.HMENU, wintypes.UINT,
+    class MSG(ctypes.Structure):
+        _fields_ = [
+            ("hWnd", wintypes.HWND),
+            ("message", wintypes.UINT),
+            ("wParam", wintypes.WPARAM),
+            ("lParam", wintypes.LPARAM),
+            ("time", wintypes.DWORD),
+            ("pt", wintypes.POINT),
+        ]
+
+
+    # Function prototypes we use.
+    _user32.DefWindowProcW.restype = LRESULT
+    _user32.DefWindowProcW.argtypes = [wintypes.HWND, wintypes.UINT,
+                                       wintypes.WPARAM, wintypes.LPARAM]
+    _user32.RegisterClassExW.restype = wintypes.ATOM
+    _user32.RegisterClassExW.argtypes = [ctypes.POINTER(WNDCLASSEXW)]
+    _user32.CreateWindowExW.restype = wintypes.HWND
+    _user32.CreateWindowExW.argtypes = [wintypes.DWORD, wintypes.LPCWSTR,
+                                        wintypes.LPCWSTR, wintypes.DWORD,
+                                        ctypes.c_int, ctypes.c_int,
+                                        ctypes.c_int, ctypes.c_int,
+                                        wintypes.HWND, wintypes.HMENU,
+                                        wintypes.HINSTANCE, wintypes.LPVOID]
+    _user32.DestroyWindow.argtypes = [wintypes.HWND]
+    _user32.DestroyWindow.restype = wintypes.BOOL
+    _user32.LoadIconW.restype = wintypes.HICON
+    _user32.LoadIconW.argtypes = [wintypes.HINSTANCE, wintypes.LPCWSTR]
+    _user32.PostQuitMessage.argtypes = [c_int := ctypes.c_int]
+    _user32.GetMessageW.restype = wintypes.BOOL
+    _user32.GetMessageW.argtypes = [ctypes.POINTER(MSG), wintypes.HWND,
+                                    wintypes.UINT, wintypes.UINT]
+    _user32.TranslateMessage.argtypes = [ctypes.POINTER(MSG)]
+    _user32.DispatchMessageW.argtypes = [ctypes.POINTER(MSG)]
+    _user32.DispatchMessageW.restype = LRESULT
+    _user32.SetTimer.argtypes = [wintypes.HWND, wintypes.UINT,
+                                 wintypes.UINT, wintypes.LPVOID]
+    _user32.SetTimer.restype = wintypes.UINT
+    _user32.KillTimer.argtypes = [wintypes.HWND, wintypes.UINT]
+    _user32.TrackPopupMenu.argtypes = [wintypes.HMENU, wintypes.UINT,
+                                       ctypes.c_int, ctypes.c_int,
+                                       ctypes.c_int, wintypes.HWND,
+                                       wintypes.LPVOID]
+    _user32.TrackPopupMenu.restype = wintypes.BOOL
+    _user32.GetCursorPos.argtypes = [ctypes.POINTER(wintypes.POINT)]
+    _user32.SetForegroundWindow.argtypes = [wintypes.HWND]
+    _user32.CreatePopupMenu.restype = wintypes.HMENU
+    _user32.AppendMenuW.argtypes = [wintypes.HMENU, wintypes.UINT,
+                                    wintypes.UINT, wintypes.LPCWSTR]
+    _user32.EnableMenuItem.argtypes = [wintypes.HMENU, wintypes.UINT,
                                        wintypes.UINT]
+    _user32.SetMenuDefaultItem.argtypes = [wintypes.HMENU, wintypes.UINT,
+                                           wintypes.UINT]
 
-_shell32.Shell_NotifyIconW.restype = wintypes.BOOL
-_shell32.Shell_NotifyIconW.argtypes = [wintypes.DWORD,
-                                       ctypes.POINTER(NOTIFYICONDATAW)]
+    _shell32.Shell_NotifyIconW.restype = wintypes.BOOL
+    _shell32.Shell_NotifyIconW.argtypes = [wintypes.DWORD,
+                                           ctypes.POINTER(NOTIFYICONDATAW)]
 
-_kernel32.GetModuleHandleW.restype = wintypes.HMODULE
-_kernel32.GetModuleHandleW.argtypes = [wintypes.LPCWSTR]
+    _kernel32.GetModuleHandleW.restype = wintypes.HMODULE
+    _kernel32.GetModuleHandleW.argtypes = [wintypes.LPCWSTR]
+
+else:
+    # Non-Windows: provide stub names so module-level references in
+    # downstream helper code don't blow up on inspection. These are
+    # never called because ``launch()`` short-circuits to print + return 0
+    # before reaching the Win32 code path.
+    class NOTIFYICONDATAW:  # type: ignore[no-redef]
+        """Stub. The real class is only defined on Windows."""
+        pass
+
+    class WNDCLASSEXW:  # type: ignore[no-redef]
+        pass
+
+    class MSG:  # type: ignore[no-redef]
+        pass
+
+    _user32 = None  # type: ignore[assignment]
+    _shell32 = None  # type: ignore[assignment]
+    _kernel32 = None  # type: ignore[assignment]
+    LRESULT = ctypes.c_ssize_t  # type: ignore[assignment]
+    WNDPROC = None  # type: ignore[assignment]
 
 
 # ---- helpers --------------------------------------------------------------
