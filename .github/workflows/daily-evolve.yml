@@ -1,0 +1,183 @@
+name: daily-evolve
+
+# Run Forkling once per day on GitHub-hosted infrastructure.
+#
+# Schedule: 06:30 UTC every day (~ 1.5 hours before European morning,
+# 22:30 Pacific previous-day). 06:30 was chosen so it does not collide
+# with PR-validation workflows and so the run finishes before any
+# human is likely to push to main.
+#
+# Also triggerable manually via the Actions tab (workflow_dispatch).
+#
+# What this does per day:
+#   1. Checkout repo with full history.
+#   2. Install Forkling + pytest.
+#   3. Install Ollama, restore model from cache, start daemon.
+#   4. Run the continuous evolve loop for ~5 generations.
+#   5. Update the project clock + paper draft.
+#   6. Commit any new skills / diary entries / ledger entries back to main.
+#
+# Permissions: contents:write so the workflow can push its own commits.
+# Token: built-in GITHUB_TOKEN (no PAT needed).
+
+on:
+  schedule:
+    - cron: "30 6 * * *"
+  workflow_dispatch:
+    inputs:
+      max_attempts:
+        description: "Max generations for this run"
+        required: false
+        default: "5"
+        type: string
+      model:
+        description: "Ollama model tag"
+        required: false
+        default: "llama3.2:3b"
+        type: string
+      include_reflection:
+        description: "Run a reflection cycle before evolving"
+        required: false
+        default: "true"
+        type: string
+
+permissions:
+  contents: write
+
+# Don't kill the job in the middle of a generation; give the loop
+# time to finish whatever it's working on. 30 min is generous for
+# daily-evolve's ~100 s baseline.
+concurrency:
+  group: forkling-evolve
+  cancel-in-progress: false
+
+jobs:
+  evolve:
+    name: Forkling daily evolve
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      # Persist the agent's memory inside the repo so the next run picks up.
+      # We commit this back at the end.
+      FORKLING_MEMORY: ${{ github.workspace }}/.forkling
+      # Ollama runs on the runner, talking to itself.
+      FORKLING_OLLAMA_URL: http://127.0.0.1:11434
+      FORKLING_LLM_TIMEOUT: 120
+
+    steps:
+      - name: Checkout (full history)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install Forkling + pytest
+        run: |
+          python -m pip install -e .
+          python -m pip install pytest
+
+      - name: Set git identity
+        run: |
+          git config user.name "Forkling"
+          git config user.email "agent@forkling.local"
+
+      - name: Install Ollama
+        run: |
+          curl -fsSL https://ollama.com/install.sh | sh
+          # Verify install.
+          ollama --version
+
+      - name: Start Ollama daemon
+        run: |
+          # Run ollama serve in the background. systemd is not available
+          # in GitHub Actions runners, so we background the process and
+          # wait for the port to open.
+          nohup ollama serve > /tmp/ollama.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:11434/api/tags >/dev/null 2>&1; then
+              echo "ollama ready after ${i}s"
+              break
+            fi
+            sleep 1
+          done
+
+      - name: Restore / pull model
+        run: |
+          ollama pull "${{ inputs.model || 'llama3.2:3b' }}"
+
+      - name: Cache Ollama models
+        uses: actions/cache@v4
+        with:
+          path: ~/.ollama/models
+          key: ollama-${{ inputs.model || 'llama3.2:3b' }}-v1
+
+      - name: Doctor
+        run: python -m forkling doctor
+
+      - name: Optional pre-run reflection
+        if: ${{ inputs.include_reflection == 'true' }}
+        run: |
+          python -m forkling reflect || echo "reflection failed; continuing"
+          echo '```json' > .forkling/reflect-output.md
+          python -m forkling goals list >> .forkling/reflect-output.md || true
+          echo '```' >> .forkling/reflect-output.md
+
+      - name: Run evolve loop
+        run: |
+          MAX_ATTEMPTS="${{ inputs.max_attempts || '5' }}"
+          MODEL="${{ inputs.model || 'llama3.2:3b' }}"
+          python -m forkling evolve start \
+            --max-attempts "${MAX_ATTEMPTS}" \
+            --model "${MODEL}" \
+            || echo "evolve exited non-zero; continuing to commit step"
+
+      - name: Update project clock
+        run: |
+          python -m forkling clock | tee paper/clock.md
+
+      - name: Refresh paper draft
+        run: |
+          python -m forkling paper publish stage-$(date -u +%Y-%m-%d) || \
+            echo "paper publish skipped"
+
+      - name: Export today's dataset
+        run: |
+          python -m forkling export-dataset || echo "dataset export skipped"
+
+      - name: Commit any new state
+        run: |
+          git add -A
+          # Only commit if there are staged changes.
+          if ! git diff --cached --quiet; then
+            STAMP="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            git commit -m "daily evolve: ${STAMP}"
+            git push origin HEAD:main
+          else
+            echo "no changes to commit"
+          fi
+
+      - name: Verify ledger chain
+        if: always()
+        run: python -m forkling verify || true
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: forkling-daily-${{ github.run_id }}
+          path: |
+            .forkling/diary.jsonl
+            .forkling/capabilities.jsonl
+            .forkling/graveyard.jsonl
+            .forkling/goals.jsonl
+            .forkling/trace.jsonl
+            .forkling/evolve.status.json
+            .forkling/reflect-output.md
+            paper/clock.md
+          retention-days: 90
+          if-no-files-found: ignore
