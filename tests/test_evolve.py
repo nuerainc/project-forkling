@@ -288,10 +288,15 @@ def test_evolve_cli_start_with_max_attempts(tmp_path, monkeypatch):
 
 def test_evolver_model_override_patches_config(tmp_path):
     """Passing model= should override cfg.ollama_model so the LLM client
-    built in _get_improver uses the new model."""
+    built in _get_improver uses the new model.
+
+    Note: the default model is ``llama3.2:3b`` (chosen from a real
+    benchmark — see ``docs/MODELS.md``), not ``qwen3:4b`` which is
+    unusably slow on small hardware.
+    """
     repo = _make_repo(tmp_path)
     cfg = _make_cfg(tmp_path)
-    assert cfg.ollama_model == "qwen3:4b"
+    assert cfg.ollama_model == "llama3.2:3b"
     e = _evolve.Evolver(cfg, repo, max_attempts=1, model="qwen3:1.7b")
     # Config should now report the override.
     assert cfg.ollama_model == "qwen3:1.7b"
@@ -303,4 +308,4 @@ def test_evolver_no_model_keeps_default(tmp_path):
     cfg = _make_cfg(tmp_path)
     e = _evolve.Evolver(cfg, repo, max_attempts=1)
     assert e.model_override is None
-    assert cfg.ollama_model == "qwen3:4b"  # unchanged
+    assert cfg.ollama_model == "llama3.2:3b"  # unchanged (real-benchmark default)

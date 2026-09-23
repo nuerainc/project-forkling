@@ -1,16 +1,26 @@
 [
   {
-    "model": "qwen3:4b",
+    "model": "llama3.2:3b",
+    "timeout_seconds": 300,
+    "used_llm": true,
+    "elapsed_seconds": 4.35,
+    "error": null,
+    "output_first_300": "{\"kind\": \"noop\", \"reason\": \"The `tmp` file is already created with the correct suffix in the `_write` method, adding `suffix=\".json\"` is unnecessary and could be seen as redundant.\"}"
+  },
+  {
+    "model": "qwen2.5-coder:7b",
+    "timeout_seconds": 300,
     "used_llm": false,
-    "elapsed_seconds": 122.11,
-    "error": "TimeoutError: timed out",
+    "elapsed_seconds": 10.26,
+    "error": "HTTPError: HTTP Error 500: Internal Server Error",
     "output_first_300": "{\"kind\": \"noop\", \"reason\": \"rule-based fallback: no edit proposed\"}"
   },
   {
-    "model": "llama3.2:3b",
-    "used_llm": true,
-    "elapsed_seconds": 11.01,
-    "error": null,
-    "output_first_300": "{\"kind\": \"noop\", \"reason\": \"No obvious opportunity to improve the logic, and adding a new import or line is unnecessary\"}"
+    "model": "qwen3:4b",
+    "timeout_seconds": 300,
+    "used_llm": false,
+    "elapsed_seconds": 302.09,
+    "error": "TimeoutError: timed out",
+    "output_first_300": "{\"kind\": \"noop\", \"reason\": \"rule-based fallback: no edit proposed\"}"
   }
 ]

@@ -30,6 +30,7 @@ from . import desktop as _desktop
 from . import tray as _tray
 from . import daemon as _daemon
 from . import evolve as _evolve
+from . import goals as _goals
 
 
 def _build_agent(repo: Path | None, cfg: Config | None = None) -> Agent:
@@ -1016,6 +1017,28 @@ def build_parser() -> argparse.ArgumentParser:
                                   "committed, rolled_back, noop).")
     evstt.add_argument("--repo", help="Repo root (defaults to cwd).")
     ev.set_defaults(func=cmd_evolve)
+
+    rf = sub.add_parser("reflect",
+                        help="Run one self-reflection cycle. Reads recent "
+                             "diary + capability ledger, asks the LLM for "
+                             "new goals, persists them to goals.jsonl.")
+    rf.add_argument("--repo", help="Repo root (defaults to cwd).")
+    rf.set_defaults(func=_goals.cmd_reflect)
+
+    gl = sub.add_parser("goals",
+                        help="Inspect / mutate the goal store.")
+    glsub = gl.add_subparsers(dest="action", required=True)
+    glsub.add_parser("list",
+                     help="List every goal ever proposed (status, priority, text).")
+    glsub.add_parser("pending",
+                     help="List only pending + in-progress goals.")
+    gss = glsub.add_parser("set-status",
+                          help="Change a goal's status (achieved / abandoned / etc).")
+    gss.add_argument("id", help="goal id, e.g. goal-abc12345")
+    gss.add_argument("status",
+                     help="new status: pending | in_progress | achieved | abandoned")
+    gss.add_argument("--note", default="", help="optional progress note")
+    gl.set_defaults(func=_goals.cmd_goals)
 
     return p
 

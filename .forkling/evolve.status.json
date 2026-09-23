@@ -1,0 +1,11 @@
+{
+  "pid": 10736,
+  "started_at": 1790121244.3476794,
+  "attempt_count": 5,
+  "committed_count": 0,
+  "rolled_back_count": 0,
+  "noop_count": 5,
+  "last_target": "C:\\Users\\monte\\.minimax\\sessions\\mvs_6cb6cc4c9d304da6bc651ab3fdd23d31\\workspace\\dogfood\\forkling\\clock.py",
+  "last_outcome": "noop",
+  "repo": "C:\\Users\\monte\\.minimax\\sessions\\mvs_6cb6cc4c9d304da6bc651ab3fdd23d31\\workspace\\dogfood"
+}
