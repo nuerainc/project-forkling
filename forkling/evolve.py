@@ -78,7 +78,7 @@ class Evolver:
     def __init__(self, cfg: Config, repo: Path, *,
                  max_attempts: int | None = None,
                  model: str | None = None,
-                 reflect_every: int = 5) -> None:
+                 reflect_every: int | None = None) -> None:
         self.cfg = cfg
         self.repo = repo
         self.max_attempts = max_attempts
@@ -90,6 +90,9 @@ class Evolver:
             self.cfg.ollama_model = model
         # Self-reflection: every N generations, ask the LLM what to
         # pursue. Default 5; lower for high-cadence small models.
+        # Accept None from the CLI and fall back to the documented default.
+        if reflect_every is None:
+            reflect_every = 5
         self.reflect_every = max(1, int(reflect_every))
 
         # Goals state — lives alongside the diary.
