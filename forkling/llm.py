@@ -47,7 +47,7 @@ class LLM:
         trace: "Trace | None" = None,
     ) -> None:
         self.url = url.rstrip("/")
-        self.model = "qwen3:4b"
+        self.model = model
         self.timeout = timeout
         self._trace = trace
 
