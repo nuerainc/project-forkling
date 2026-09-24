@@ -189,6 +189,43 @@ class SelfImprover:
         "forkling/llm.py",
     )
 
+    # Files the agent is NOT allowed to touch via either kind: patch or
+    # kind: new_file, even indirectly. These are the modules that define
+    # the agent's own evaluator, kernel, or runtime surface — rewriting
+    # any of them mid-cycle would corrupt the substrate that selection
+    # pressure depends on. See docs/SANDBOX.md for the rationale.
+    KERNEL_FILES = frozenset({
+        "forkling/agent.py",
+        "forkling/llm.py",
+        "forkling/planner.py",
+        "forkling/config.py",
+        "forkling/diary.py",
+        "forkling/capability.py",
+        "forkling/graveyard.py",
+        "forkling/trace.py",
+        "forkling/goals.py",
+        "forkling/locking.py",
+        "forkling/self_improve.py",
+        "forkling/evolve.py",
+        "forkling/__main__.py",
+        "forkling/desktop.py",
+        "forkling/tray.py",
+        "forkling/daemon.py",
+        "forkling/sandbox.py",  # the sandbox module itself
+        "forkling/tools.py",    # the patch primitives — too dangerous
+    })
+
+    @classmethod
+    def is_kernel_path(cls, path: str) -> bool:
+        """Return True if `path` is in the kernel whitelist."""
+        if not path:
+            return False
+        # Normalise: strip trailing slashes, lowercase basename.
+        p = path.replace("\\", "/").strip("/")
+        return p in cls.KERNEL_FILES or any(
+            p == kf or p.endswith("/" + kf) for kf in cls.KERNEL_FILES
+        )
+
     def __init__(self, agent: Agent) -> None:
         self.agent = agent
 
@@ -367,6 +404,24 @@ class SelfImprover:
         if not patch_path:
             patch_path = target_str
 
+        # Kernel protection: the agent cannot patch its own kernel. This
+        # is the structural reason the loop is safe — selection pressure
+        # cannot be subverted by the agent rewriting its evaluator.
+        if self.is_kernel_path(patch_path):
+            self.agent.graveyard.record(
+                path=patch_path, old=old, new=new,
+                reason="kernel-write attempt rejected",
+                source="validate",
+            )
+            self.agent.diary.write("self-improve.rejected",
+                                   f"kernel-write attempt: {patch_path}")
+            return SelfImproveResult(
+                changed=False, committed=False, rolled_back=False,
+                before_sha=before_sha, after_sha=before_sha,
+                patch_summary=f"rejected: kernel path {patch_path}",
+                note="kernel path not writable", kind="patch",
+            )
+
         # Resolve patch_path against the agent root if it's relative.
         # The LLM returns paths like "forkling/memory.py"; tools need an
         # absolute path (or a path that resolves to the test repo, not
@@ -492,6 +547,14 @@ class SelfImprover:
             return False, f"path must start with 'forkling/' (got {path!r})"
         if not path.endswith(".py"):
             return False, f"path must end with .py (got {path!r})"
+        # Kernel protection: the agent cannot write brand-new kernel
+        # modules either. Adding `forkling/agent.py` as a *new* file
+        # would be a way to bypass the kind: patch kernel guard.
+        if self.is_kernel_path(path):
+            return False, (
+                f"path is in KERNEL_FILES; agent cannot create kernel "
+                f"modules via kind:new_file (got {path!r})"
+            )
         # No path traversal.
         if ".." in path.split("/"):
             return False, f"path traversal not allowed: {path!r}"
