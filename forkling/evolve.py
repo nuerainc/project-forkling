@@ -2,23 +2,38 @@
 
 Real natural selection doesn't wait between generations. An organism
 under selection pressure is *always* either being tested, mutating, or
-dying. There's no clock interval. The "tick" is a generation.
+dying. There's no clock interval. The "tick" is an attempt; the
+"generation" is the subset of attempts that survived selection.
 
 This module is the natural-selection model. The loop is dead simple:
 
   while not stop:
-    generation += 1
+    attempts += 1
     pick a target file (rotate)
     call SelfImprover.propose_and_apply()   # propose + test + commit/rollback
     # NO SLEEP. The LLM call IS the throttle.
 
 That's it. No subprocess, no heartbeat cadence, no idle waiting. The
 agent runs as fast as the LLM (variation) + pytest (selection) allow.
-Every ``propose_and_apply`` call is one generation.
+
+Vocabulary (kept honest because the noop rate is high):
+
+  - **attempt**: one cycle through the loop. Counter: ``attempt_count``.
+  - **generation**: an attempt whose commit landed in git. Counter:
+    ``committed_count``. The Dawkins sense — a heritable change.
+  - **noop**: an attempt that produced no commit (kernel guard rejected
+    it, validator rejected it, or rule-based fallback ran).
+  - **rolled-back**: an attempt whose commit was reverted by ``git
+    checkout`` because pytest failed.
+
+Most attempts are noops or rolled-back. That's selection pressure, not
+a bug. The interesting question is *how many generations per day*, not
+*how many attempts per day*. A typical day-1 run on a clean substrate
+with llama3.2:3b: 100 attempts, ~0-2 generations.
 
 Substrate is unchanged: every successful generation is a real git
-commit. Every failed generation is a real rollback to the previous
-SHA. The ledger records both. The diary captures both.
+commit. Every failed attempt is a real rollback to the previous SHA
+(or a no-op). The ledger records both. The diary captures both.
 
 Why this is different from the heartbeat model:
   - heartbeat = one attempt every N minutes, idle between
@@ -133,7 +148,8 @@ class Evolver:
                 if (self.max_attempts is not None
                         and self.attempt_count >= self.max_attempts):
                     self._log("evolve.max_attempts_reached",
-                              f"exiting after {self.attempt_count} generations")
+                              f"exiting after {self.attempt_count} attempts "
+                              f"({self.committed_count} generations)")
                     break
                 # Periodic self-reflection. Generates the agent's own
                 # goals. Silent no-op if nothing new comes up.
