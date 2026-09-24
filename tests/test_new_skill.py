@@ -60,10 +60,15 @@ def _init_repo(tmp_path: Path) -> Path:
     # Pre-create every file in SelfImprover.SAFE_FILES so _pick_target
     # can read whatever it lands on. Content is trivial; the test's
     # stub LLM never actually consults it.
-    for name in ("agent.py", "planner.py", "memory.py", "tools.py",
-                 "config.py", "llm.py"):
-        (repo / "forkling" / name).write_text(
-            f"# {name}\nclass _Stub:\n    pass\n", encoding="utf-8")
+    for rel in SelfImprover.SAFE_FILES:
+        path = repo / rel
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(f"# {rel}\nclass _Stub:\n    pass\n", encoding="utf-8")
+    # Also pre-create the placeholder skill modules (e.g.
+    # audio_header_parser.py) so the picker can land on them.
+    (repo / "forkling" / "audio_header_parser.py").write_text(
+        "# placeholder skill: replace this stub\nclass _AudioHeaderParser:\n    pass\n",
+        encoding="utf-8")
     subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
     subprocess.run(["git", "config", "user.email", "t@t"], cwd=repo, check=True)
     subprocess.run(["git", "config", "user.name", "t"], cwd=repo, check=True)

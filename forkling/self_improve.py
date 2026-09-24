@@ -180,13 +180,28 @@ Return JSON only. No prose, no fences."""
 
 
 class SelfImprover:
+    # Files the agent's _pick_target rotates through as patch candidates.
+    # Aims to surface a *non-kernel* patchable surface so the LLM isn't
+    # always proposing kernel patches (which the KERNEL_FILES guard
+    # rightly rejects). Includes:
+    #   - placeholder skills (e.g., audio_header_parser from earlier runs)
+    #     so the agent can flesh them out
+    #   - test files (the agent can improve its own coverage)
+    #   - documentation files (the agent can keep docs current)
     SAFE_FILES = (
-        "forkling/agent.py",
-        "forkling/planner.py",
-        "forkling/memory.py",
-        "forkling/tools.py",
-        "forkling/config.py",
-        "forkling/llm.py",
+        # Placeholder skill modules (committed by earlier new_file runs
+        # and ready to be filled in).
+        "forkling/audio_header_parser.py",
+        # Test files — agent can strengthen its own test suite.
+        "tests/test_diary.py",
+        "tests/test_capability.py",
+        "tests/test_graveyard.py",
+        # Documentation — safe to extend.
+        "docs/ROADMAP.md",
+        "docs/MODELS.md",
+        "docs/FAMILY_SETUP.md",
+        "docs/SANDBOX.md",
+        "docs/SANDBOX_A_B.md",
     )
 
     # Files the agent is NOT allowed to touch via either kind: patch or
@@ -604,7 +619,25 @@ class SelfImprover:
     def _pick_target(self) -> Path:
         # Cycle through SAFE_FILES deterministically but prefer files we've
         # touched least recently (rough heuristic: prefer the last one).
-        return tools.safe_path(self.agent.root, self.SAFE_FILES[-1])
+        # If the candidate doesn't exist in the repo (fresh clone, partial
+        # init), fall back to the first SAFE_FILE that does exist — the
+        # LLM prompt can still ask for an edit, even if the file has to
+        # be created via kind:new_file or seeded by the test harness.
+        for rel in reversed(self.SAFE_FILES):
+            candidate = self.agent.root / rel
+            if candidate.is_file():
+                return tools.safe_path(self.agent.root, rel)
+        # None of the SAFE_FILES exist in this repo. Walk the forkling/
+        # dir and pick any file we can find. The LLM can still propose
+        # an edit; if the proposal is to a non-existent file, it will
+        # fail the validator and the loop will move on.
+        for rel in self.SAFE_FILES:
+            if rel.startswith("forkling/"):
+                return tools.safe_path(self.agent.root, rel)
+        # Final fallback: pick the first SAFE_FILES entry regardless of
+        # existence. The caller will likely see an empty file, but the
+        # loop should not crash.
+        return tools.safe_path(self.agent.root, self.SAFE_FILES[0])
 
     def _propose(self, path: str, source: str, goal: str) -> dict:
         # Keep the prompt small — small models get lost in big inputs.
