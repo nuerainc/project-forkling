@@ -362,15 +362,23 @@ class Evolver:
         except OSError:
             pass
 
-    def _log(self, kind: str, content: str) -> None:
+    def _log(self, kind: str, content: str, **meta) -> None:
         try:
             memory_dir = Path(self.cfg.memory_dir)
-            Diary(memory_dir / "diary.jsonl").write(kind, content)
+            # Avoid collisions: if meta accidentally includes a
+            # ``kind`` key (a common shadowing mistake), drop it —
+            # the canonical kind is the positional arg.
+            meta.pop("kind", None)
+            Diary(memory_dir / "diary.jsonl").write(kind, content, **meta)
         except Exception as e:
             print(f"evolve: diary write failed ({e}); {kind}: {content}",
                   file=sys.stderr)
         ts = time.strftime("%Y-%m-%d %H:%M:%S")
-        print(f"[{ts}] [{kind}] {content}", file=sys.stderr)
+        if meta:
+            extra = " ".join(f"{k}={v}" for k, v in meta.items())
+            print(f"[{ts}] [{kind}] {content} ({extra})", file=sys.stderr)
+        else:
+            print(f"[{ts}] [{kind}] {content}", file=sys.stderr)
 
 
 # ---- static helpers used by the CLI --------------------------------------

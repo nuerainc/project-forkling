@@ -297,7 +297,7 @@ class _ReloadingSelfImprover:
                             f"reloaded {module_name} after commit {result.after_sha[:7]}",
                             module=module_name,
                             sha_after=result.after_sha,
-                            kind="new_file",
+                            proposal_kind=result.kind,
                         )
         finally:
             # If anything failed or we just need to roll back the
@@ -323,7 +323,7 @@ class _ReloadingSelfImprover:
                         added=added,
                         sha_before=result.before_sha,
                         sha_after=result.after_sha,
-                        kind=result.kind,
+                        proposal_kind=result.kind,
                     )
 
         self._snapshot_log.append({
