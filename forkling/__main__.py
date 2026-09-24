@@ -671,12 +671,19 @@ def cmd_evolve(args: argparse.Namespace) -> int:
             print(f"evolve already running for {repo} "
                   f"(see {_evolve.PID_FILENAME})", file=sys.stderr)
             return 1
-        e = _evolve.Evolver(
+        # ``--sandbox`` swaps in SandboxEvolver, which adds in-process
+        # hot-reload of freshly-shipped modules (see docs/SANDBOX.md).
+        if getattr(args, "sandbox", False):
+            from . import sandbox as _sandbox
+            evolver_cls = _sandbox.SandboxEvolver
+        else:
+            evolver_cls = _evolve.Evolver
+        return evolver_cls(
             cfg, repo,
             max_attempts=getattr(args, "max_attempts", None),
             model=getattr(args, "model", None),
-        )
-        return e.run_forever()
+            reflect_every=getattr(args, "reflect_every", None),
+        ).run_forever()
 
     if args.action == "stop":
         if _evolve.request_stop(repo):
@@ -1007,8 +1014,16 @@ def build_parser() -> argparse.ArgumentParser:
                      help="Exit after this many generations (useful for tests).")
     evs.add_argument("--model", default=None,
                      help="Ollama model to use (default: FORKLING_OLLAMA_MODEL "
-                          "or 'qwen3:4b'). Lets each family fork pick its own "
+                          "or 'llama3.2:3b'). Lets each family fork pick its own "
                           "model size for the model-size A/B study.")
+    evs.add_argument("--sandbox", action="store_true",
+                     help="Enable in-process hot-reload of freshly-shipped "
+                          "modules. See forkling/sandbox.py and docs/SANDBOX.md. "
+                          "Default off (file-system mode is the conservative "
+                          "baseline).")
+    evs.add_argument("--reflect-every", type=int, default=None,
+                     help="Run a self-reflection cycle every N generations. "
+                          "Defaults to FORKLING_REFLECT_EVERY or 5.")
     evst = evsub.add_parser("stop",
                             help="Tell a running evolver to exit gracefully.")
     evst.add_argument("--repo", help="Repo root (defaults to cwd).")
