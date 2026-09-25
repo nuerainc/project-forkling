@@ -1,0 +1,10 @@
+{"id":"001","kind":"off_by_one","path":"tasks/001-sum-range","prompt":"sum_range(start, stop) returns the sum of all integers from start to stop INCLUSIVE on both ends. Currently returns the wrong value when stop equals start."}
+{"id":"002","kind":"off_by_one","path":"tasks/002-last-n","prompt":"last_n(items, n) returns the last n elements of a list. Currently returns one too few elements."}
+{"id":"003","kind":"wrong_operator","path":"tasks/003-is-singleton","prompt":"is_singleton(v) returns True if v is None. Currently returns the wrong value for the None case."}
+{"id":"004","kind":"wrong_operator","path":"tasks/004-find-first","prompt":"find_first(items, target) returns the index of the first item equal to target, or -1. Currently uses identity comparison instead of equality, so it misses values that compare equal but are not the same object."}
+{"id":"005","kind":"missing_edge","path":"tasks/005-mean","prompt":"mean(values) returns the arithmetic mean. Currently raises ZeroDivisionError on empty input; should return 0.0."}
+{"id":"006","kind":"missing_edge","path":"tasks/006-first-value","prompt":"first_value(d) returns the first value of dict d. Currently raises StopIteration on empty dict; should return None."}
+{"id":"007","kind":"wrong_return","path":"tasks/007-reverse-string","prompt":"reverse_string(s) returns s reversed. Currently returns s unchanged."}
+{"id":"008","kind":"wrong_return","path":"tasks/008-increment-all","prompt":"increment_all(values) returns a new list with each element +1. Currently returns a copy of the input unchanged."}
+{"id":"009","kind":"typo","path":"tasks/009-word-count","prompt":"word_count(text) returns a dict mapping each whitespace-separated word to its count. Currently raises NameError due to a typo."}
+{"id":"010","kind":"missing_edge","path":"tasks/010-normalize-email","prompt":"normalize_email(email) lowercases and strips whitespace. Currently raises ValueError when @ IS present; should raise ValueError ONLY when @ is missing."}

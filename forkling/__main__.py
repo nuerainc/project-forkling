@@ -25,6 +25,7 @@ from .planner import Planner
 from .replay import diff_replays, lineage as replay_lineage, replay as do_replay
 from .self_improve import SelfImprover
 from .trace import Trace
+from . import experiment as _experiment
 from . import tools
 from . import desktop as _desktop
 from . import tray as _tray
@@ -1054,6 +1055,26 @@ def build_parser() -> argparse.ArgumentParser:
                      help="new status: pending | in_progress | achieved | abandoned")
     gss.add_argument("--note", default="", help="optional progress note")
     gl.set_defaults(func=_goals.cmd_goals)
+
+    ex = sub.add_parser("experiment",
+                        help="Three-arm bug-fix experiment on a frozen benchmark. "
+                             "See paper/hypothesis.md for the pre-registered design.")
+    exsub = ex.add_subparsers(dest="action", required=True)
+    exr = exsub.add_parser("run", help="Run baseline / evolve+select / evolve+random.")
+    exr.add_argument("--bench", required=True,
+                     help="Path to a benchmark JSONL (e.g. bench/FORKLAND-BENCH-001.jsonl).")
+    exr.add_argument("--k", type=int, default=10,
+                     help="Attempts per task per arm (default 10).")
+    exr.add_argument("--model", default="llama3.2:3b",
+                     help="Ollama model name (default llama3.2:3b).")
+    exr.add_argument("--ollama-url", default="http://127.0.0.1:11434")
+    exr.add_argument("--timeout", type=float, default=60.0)
+    exr.add_argument("--seed", type=int, default=20260925)
+    exr.add_argument("--arms", default="A,B,C",
+                     help="Comma-separated arm ids (default A,B,C).")
+    exr.add_argument("--out", required=True, help="Output JSON file.")
+    exr.set_defaults(func=_experiment.cmd_experiment_run)
+    ex.set_defaults(func=_experiment.cmd_experiment_run)
 
     return p
 
