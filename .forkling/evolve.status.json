@@ -1,10 +1,10 @@
 {
-  "pid": 2563,
-  "started_at": 1790232443.4165394,
+  "pid": 2804,
+  "started_at": 1790318884.3450315,
   "attempt_count": 5,
   "committed_count": 0,
-  "rolled_back_count": 1,
-  "noop_count": 4,
+  "rolled_back_count": 0,
+  "noop_count": 5,
   "last_target": "/home/runner/work/project-forkling/project-forkling/forkling/capability.py",
   "last_outcome": "noop",
   "repo": "/home/runner/work/project-forkling/project-forkling"
