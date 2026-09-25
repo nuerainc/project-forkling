@@ -231,3 +231,22 @@ def test_experiment_run_help_works():
     assert result.returncode == 0
     assert "--bench" in result.stdout
     assert "--k" in result.stdout
+
+
+def test_prompt_template_includes_schema_example():
+    """The prompt must show a worked example of the expected JSON shape.
+
+    Without an example, qwen2.5-coder:7b invented RFC-6902 JSON-Patch
+    format (probe_qwen.py, 2026-09-25). With the example, it follows
+    the schema exactly. This is load-bearing for any model other than
+    the smallest llama3.2 family.
+    """
+    from forkling.experiment import PROMPT_TEMPLATE
+    assert "Worked example" in PROMPT_TEMPLATE, (
+        "PROMPT_TEMPLATE must include a worked example so models emit "
+        "the expected JSON shape rather than inventing their own "
+        "(qwen2.5-coder:7b default is RFC-6902 JSON-Patch)."
+    )
+    assert '"kind": "patch"' in PROMPT_TEMPLATE
+    assert '"old":' in PROMPT_TEMPLATE
+    assert '"new":' in PROMPT_TEMPLATE

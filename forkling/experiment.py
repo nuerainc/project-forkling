@@ -38,18 +38,27 @@ from .llm import LLM
 # ----- prompt construction -------------------------------------------------
 
 PROMPT_TEMPLATE = """You are fixing a small Python function. Produce a JSON
-patch with this exact shape:
-
-{{"kind": "patch", "path": "buggy.py", "old": "<exact text to replace>",
- "new": "<replacement text>"}}
-
-Or, if you want to replace the entire function:
+patch with this EXACT shape (no other fields, no list, just this object):
 
 {{"kind": "patch", "path": "buggy.py",
- "old": "<the whole current function body, signature + body>",
- "new": "<the whole new function body, signature + body>"}}
+  "old": "<the EXACT substring in buggy.py you are replacing>",
+  "new": "<the replacement text>"}}
 
-Respond with JSON only. No prose, no markdown fences.
+Worked example — given buggy.py:
+```python
+def add(a, b):
+    return a - b
+```
+and the task "add should add", the correct response is:
+{{"kind": "patch", "path": "buggy.py",
+  "old": "return a - b", "new": "return a + b"}}
+
+Rules:
+- `old` MUST appear verbatim in buggy.py (copy-paste it; do not paraphrase).
+- `new` MUST be the full replacement (include the same indentation).
+- Do NOT wrap the JSON in markdown fences.
+- Do NOT include prose, explanations, or code blocks around the JSON.
+- Output exactly one JSON object, nothing else.
 
 Task description:
 {prompt}
