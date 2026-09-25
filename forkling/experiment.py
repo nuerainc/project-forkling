@@ -86,12 +86,25 @@ def build_prompt(task: BenchTask) -> str:
 # ----- patch application ---------------------------------------------------
 
 def apply_patch(source: str, old: str, new: str) -> str | None:
-    """Apply a string replacement to source. Return None if old not found."""
+    """Apply a string replacement to source. Return None if old not found.
+
+    Tries the strings as-given first; if that fails, tries to interpret
+    any backslash-escaped sequences in `old` (so \\n becomes a literal
+    newline, etc.). The LLM sometimes double-escapes newlines; this
+    second pass makes the parser robust to that.
+    """
     if old and old in source:
         return source.replace(old, new, 1)
     # Fallback: if old is empty (LLM returned full replacement), accept as-is.
     if not old:
         return new
+    # Second try: unescape common sequences in `old`.
+    try:
+        unescaped = old.encode("utf-8").decode("unicode_escape")
+        if unescaped in source:
+            return source.replace(unescaped, new, 1)
+    except UnicodeDecodeError:
+        pass
     return None
 
 
@@ -156,7 +169,8 @@ def run_attempt(llm: LLM, task: BenchTask, attempt_idx: int,
     """
     prompt = build_prompt(task)
     t0 = time.monotonic()
-    raw = llm.chat(prompt)
+    completion = llm.complete(prompt, kind="experiment", task=task.id)
+    raw = completion.text
     elapsed = time.monotonic() - t0
 
     parsed = extract_patch(raw, current_source)

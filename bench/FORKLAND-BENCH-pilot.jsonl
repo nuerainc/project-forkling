@@ -1,0 +1,1 @@
+{"id":"003","kind":"wrong_operator","path":"tasks/003-is-singleton","prompt":"is_singleton(v) returns True if and only if v is the unique None object. Examples: is_singleton(None) -> True; is_singleton(0) -> False; is_singleton(\"\") -> False."}

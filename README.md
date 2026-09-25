@@ -15,7 +15,7 @@
 ![No paid APIs](https://img.shields.io/badge/no_paid_APIs-000000)
 ![Raspberry Pi Zero target](https://img.shields.io/badge/hardware-Pi_Zero_(512MB)-C51A4A?logo=raspberrypi)
 
-![Tests: 174 / 174 passing](https://img.shields.io/badge/tests-174%2F174_passing-2EA043)
+![Tests: 209 / 209 passing](https://img.shields.io/badge/tests-209%2F209_passing-2EA043)
 ![LLM: llama3.2:3b default](https://img.shields.io/badge/LLM-llama3.2%3A3b-FF6F00)
 ![365-day cycle: day 7 / 365](https://img.shields.io/badge/cycle-day_7%2F365-orange)
 
@@ -27,7 +27,8 @@
 [**Clock & stages**](#clock--stages) ·
 [**Family**](#forkland--family) ·
 [**Paper**](#paper) ·
-[**Authorship**](#authorship--license)
+[**Authorship**](#authorship--license) ·
+[**Current research**](#current-research)
 
 </div>
 
@@ -36,6 +37,48 @@
 ## TL;DR
 
 Forkling is a 365-day, **self-contained, evolutionary AI organism** that lives entirely inside a git repository. Every generation is a real commit or a real rollback; selection is the project's own `pytest` test suite; the genome is the source tree. The agent proposes variations (patches or brand-new modules), gets evaluated, and either survives or dies — over and over, on a continuous loop, with no human in the loop between heartbeats. A SHA-256-chained capability ledger, an append-only diary, and a chained trace make every step auditable. The family name is **Forkland**: Forkling is the founding member, Spoonica the pure baseline, Sporklyn and Knifling siblings that join later. Inference is local Ollama; the hardware floor is a Raspberry Pi Zero.
+
+## Current research
+
+As of day 7, the substrate exists but no science has been run yet.
+We are not yet in a position to claim "this advances the state of the
+art." What we have is the loop; what we are now building is the
+experiment that asks whether the loop helps.
+
+**Pre-registered hypothesis:** [`paper/hypothesis.md`](paper/hypothesis.md)
+
+> H1: An evolve loop with pytest-based selection pressure on
+> agent-proposed patches achieves higher pass@5 than a no-iterate
+> baseline AND higher than a random-accept evolve loop, on
+> FORKLAND-BENCH-001, with paired Mann–Whitney U p<0.025 (Bonferroni).
+
+**Benchmark:** [`bench/FORKLAND-BENCH-001`](bench/FORKLAND-BENCH-001.jsonl) — 10 small Python bug-fix tasks spanning off-by-one, wrong operator, missing edge case, wrong return, and typo. Visible tests drive selection; held-out tests drive grading.
+
+**Design writeup:** [`docs/EXPERIMENT_DESIGN.md`](docs/EXPERIMENT_DESIGN.md)
+
+**Three arms:**
+- **A — baseline.** One-shot generation, K independent draws per task.
+- **B — evolve + select.** Iterate; keep a patch iff visible tests pass.
+- **C — evolve + random.** Iterate; accept each patch with probability 0.5 regardless of outcome.
+
+Run command (planned budget: K=10, 300 LLM calls, ~30–60 min on llama3.2:3b):
+
+```bash
+python -m forkling experiment run \
+    --bench bench/FORKLAND-BENCH-001.jsonl \
+    --k 10 --model llama3.2:3b \
+    --out results/exp001.json
+```
+
+Validate the benchmark is still frozen:
+
+```bash
+python bench/validate_bench.py
+```
+
+The hypothesis is binding. We will not re-define arms, budget, metric,
+or stopping rule after viewing pilot data. If the harness is broken,
+we fix the harness and re-register; we do not move goalposts.
 
 ## What this is, really
 

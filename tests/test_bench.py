@@ -119,6 +119,17 @@ def test_apply_patch_with_empty_old_returns_new_verbatim():
     assert apply_patch("anything", "", "fresh content") == "fresh content"
 
 
+def test_apply_patch_unescapes_backslash_sequences():
+    """When the LLM double-escapes newlines (\\n instead of \\n in the
+    raw JSON), the as-given `old` does not match. The fallback unescape
+    pass should still find the substring."""
+    src = "def f():\n    return 1\n"
+    # Note: \\n here is a 2-char string (backslash + n), NOT a newline.
+    doubled = "def f():\\n    return 1\\n"
+    out = apply_patch(src, doubled, "def f():\n    return 2\n")
+    assert out == "def f():\n    return 2\n"
+
+
 # ----- experiment.py: extract_patch --------------------------------------
 
 def test_extract_patch_parses_clean_json():

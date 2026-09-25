@@ -1,0 +1,101 @@
+{
+  "config": {
+    "bench": "bench/FORKLAND-BENCH-pilot.jsonl",
+    "model": "llama3.2:3b",
+    "ollama_url": "http://127.0.0.1:11434",
+    "k_per_task": 1,
+    "seed": 20260925,
+    "arms": [
+      "A",
+      "B",
+      "C"
+    ]
+  },
+  "metrics": {
+    "A": {
+      "pass_at_1": 0.0,
+      "pass_at_5": 0.0,
+      "pass_at_10": 0.0,
+      "commit_rate": 1.0,
+      "parse_ok_rate": 0.0,
+      "n_records": 1
+    },
+    "B": {
+      "pass_at_1": 1.0,
+      "pass_at_5": 1.0,
+      "pass_at_10": 1.0,
+      "commit_rate": 1.0,
+      "parse_ok_rate": 1.0,
+      "n_records": 1
+    },
+    "C": {
+      "pass_at_1": 1.0,
+      "pass_at_5": 1.0,
+      "pass_at_10": 1.0,
+      "commit_rate": 1.0,
+      "parse_ok_rate": 1.0,
+      "n_records": 1
+    }
+  },
+  "per_task_pass_at_5": {
+    "003": {
+      "A": 0,
+      "B": 1,
+      "C": 1
+    }
+  },
+  "stats": {
+    "B_vs_A": {
+      "u": 0.0,
+      "p": 1.0
+    },
+    "B_vs_C": {
+      "u": 0.5,
+      "p": 1.0
+    }
+  },
+  "records": {
+    "A": [
+      {
+        "task_id": "003",
+        "arm": "A",
+        "attempt_idx": 0,
+        "committed": true,
+        "visible_pass": false,
+        "held_out_pass": false,
+        "parse_ok": false,
+        "raw_response": "{\"kind\": \"patch\", \"path\": \"buggy.py\", \"old\": \"def is_singleton(v):\\\\n    \\\"\\\"\\\"Return True if v is None, False otherwise.\\\"\\\"\\\"\\\\n    return v == [None]\", \"new\": \"def is_singleton(v):\\\\n    \\\"\\\"\\\"Return True if v is None, False otherwise.\\\"\\\"\\\"\\\\n    return v is None\"}",
+        "elapsed_s": 2.6968695999967167,
+        "note": "parse_fail"
+      }
+    ],
+    "B": [
+      {
+        "task_id": "003",
+        "arm": "B",
+        "attempt_idx": 0,
+        "committed": true,
+        "visible_pass": true,
+        "held_out_pass": true,
+        "parse_ok": true,
+        "raw_response": "{\"kind\": \"patch\", \"path\": \"buggy.py\", \"old\": \"v == [None]\", \"new\": \"v == None\"}",
+        "elapsed_s": 0.942347799995332,
+        "note": ""
+      }
+    ],
+    "C": [
+      {
+        "task_id": "003",
+        "arm": "C",
+        "attempt_idx": 0,
+        "committed": true,
+        "visible_pass": true,
+        "held_out_pass": true,
+        "parse_ok": true,
+        "raw_response": "{\"kind\": \"patch\", \"path\": \"buggy.py\", \"old\": \"def is_singleton(v):\\n    \\\"\\\"\\\"Return True if v is None, False otherwise.\\\"\\\"\\\"\\n    return v == [None]\", \"new\": \"def is_singleton(v):\\n    \\\"\\\"\\\"Return True if v is None, False otherwise.\\\"\\\"\\\"\\n    return v is None\"}",
+        "elapsed_s": 2.399232600000687,
+        "note": ""
+      }
+    ]
+  }
+}
