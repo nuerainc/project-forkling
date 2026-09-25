@@ -306,18 +306,19 @@ class Evolver:
         return self._improver
 
     def _get_improver_target(self) -> Path | None:
-        """Best-effort: return the path the improver just edited."""
-        # SelfImprover stores it as agent.state. We use _pick_target's
-        # logic: cycle through forkling/*.py by attempt_count.
-        pkg = self.repo / "forkling"
-        targets = sorted(p for p in pkg.glob("*.py")
-                         if p.name != "__init__.py")
-        if not targets:
+        """Return the path SelfImprover._pick_target chose this round.
+
+        We delegate to the same picker SelfImprover uses so the evolve log
+        matches the actual rotation (SAFE_FILES, not all of forkling/*).
+        The earlier implementation walked every forkling/*.py and produced
+        kernel-file targets that looked like rejections — masking whether
+        the LLM was actually proposing kernel files.
+        """
+        try:
+            improver = self._get_improver()
+            return improver._pick_target()
+        except Exception:
             return None
-        # Note: SelfImprover._pick_target may use SAFE_FILES (a subset)
-        # not the full glob. Best effort — we use the same rotation.
-        idx = (self.attempt_count - 1) % len(targets)
-        return targets[idx]
 
     def _should_stop(self) -> bool:
         return (self._stop_event.is_set()
