@@ -23,6 +23,7 @@ import argparse
 import dataclasses
 import json
 import math
+import os
 import random
 import re
 import subprocess
@@ -377,6 +378,8 @@ def run_experiment(
     timeout_s: float,
     seed: int,
     arms: tuple[str, ...] = ("A", "B", "C"),
+    checkpoint_path: Path | None = None,
+    resume_from: Path | None = None,
 ) -> ExperimentResult:
     rng = random.Random(seed)
     tasks = load_benchmark(bench_jsonl)
@@ -395,9 +398,38 @@ def run_experiment(
         (t.id, arm): [] for t in tasks for arm in arms
     }
 
+    # Optional resume: load any previously-completed (task, arm) pairs
+    # from a JSONL checkpoint file. Each line: {"task_id", "arm",
+    # "records": [...]}.
+    completed: set[tuple[str, str]] = set()
+    if resume_from is not None and resume_from.is_file():
+        with resume_from.open("r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                obj = json.loads(line)
+                recs = [AttemptRecord(**r) for r in obj["records"]]
+                key = (obj["task_id"], obj["arm"])
+                grouped[key] = recs
+                records_by_task[obj["task_id"]].extend(recs)
+                completed.add(key)
+        print(f"[exp] resumed {len(completed)} (task, arm) pairs from {resume_from}")
+
+    # Optional checkpoint: append one JSONL line per completed
+    # (task, arm). If the run is killed mid-experiment, the file
+    # already has every completed pair and can be used as resume_from
+    # for the next attempt.
+    ckpt_file = None
+    if checkpoint_path is not None:
+        checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
+        ckpt_file = checkpoint_path.open("a", encoding="utf-8")
+
     for arm in arms:
         fn = arm_fns[arm]
         for task in tasks:
+            if (task.id, arm) in completed:
+                continue  # resumed; don't redo
             # Per-arm sub-RNG so the experiment is reproducible but
             # arm C's accept/reject coin is independent of arm B's.
             sub_seed = seed + hash((arm, task.id)) % (2**31)
@@ -405,6 +437,18 @@ def run_experiment(
             recs = fn(llm, task, k_per_task, sub_rng)
             grouped[(task.id, arm)] = recs
             records_by_task[task.id].extend(recs)
+            if ckpt_file is not None:
+                line_obj = {
+                    "task_id": task.id,
+                    "arm": arm,
+                    "records": [dataclasses.asdict(r) for r in recs],
+                }
+                ckpt_file.write(json.dumps(line_obj) + "\n")
+                ckpt_file.flush()
+                os.fsync(ckpt_file.fileno())
+
+    if ckpt_file is not None:
+        ckpt_file.close()
 
     metrics = compute_metrics(records_by_task)
 
@@ -448,6 +492,8 @@ def cmd_experiment_run(args: argparse.Namespace) -> int:
     out_path.parent.mkdir(parents=True, exist_ok=True)
     print(f"[exp] loading benchmark from {args.bench}")
     print(f"[exp] model={args.model} k_per_task={args.k} seed={args.seed}")
+    checkpoint = Path(args.checkpoint) if args.checkpoint else None
+    resume = Path(args.resume_from) if args.resume_from else None
     result = run_experiment(
         bench_jsonl=Path(args.bench),
         k_per_task=args.k,
@@ -456,6 +502,8 @@ def cmd_experiment_run(args: argparse.Namespace) -> int:
         timeout_s=args.timeout,
         seed=args.seed,
         arms=tuple(args.arms.split(",")),
+        checkpoint_path=checkpoint,
+        resume_from=resume,
     )
     # Serialize: convert dataclasses to dicts.
     serialized = {
@@ -508,6 +556,12 @@ def main(argv: list[str] | None = None) -> int:
     pr.add_argument("--arms", default="A,B,C",
                     help="Comma-separated arm ids (default A,B,C).")
     pr.add_argument("--out", required=True, help="Output JSON file.")
+    pr.add_argument("--checkpoint", default=None,
+                    help="Append JSONL checkpoint after each (task, arm) completes. "
+                         "Survives crashes; can be passed back via --resume-from.")
+    pr.add_argument("--resume-from", default=None,
+                    help="Resume from a previous checkpoint JSONL. Skips any "
+                         "(task, arm) pairs already completed.")
     pr.set_defaults(func=cmd_experiment_run)
 
     args = p.parse_args(argv)

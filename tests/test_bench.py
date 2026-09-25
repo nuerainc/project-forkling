@@ -12,6 +12,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import dataclasses
 from pathlib import Path
 
 import pytest
@@ -250,3 +251,53 @@ def test_prompt_template_includes_schema_example():
     assert '"kind": "patch"' in PROMPT_TEMPLATE
     assert '"old":' in PROMPT_TEMPLATE
     assert '"new":' in PROMPT_TEMPLATE
+
+
+def test_experiment_checkpoint_roundtrip(tmp_path):
+    """The checkpoint file should be a JSONL where each line is one
+    (task_id, arm, records) entry. A subsequent run with --resume-from
+    should skip the already-completed pairs."""
+    from forkling.experiment import AttemptRecord
+    ckpt = tmp_path / "exp.ckpt.jsonl"
+    # Simulate writing two (task, arm) entries.
+    rec1 = AttemptRecord("t1", "A", 0, True, True, True, True, "ok", 0.1)
+    rec2 = AttemptRecord("t2", "A", 0, True, False, False, True, "", 0.2)
+    with ckpt.open("w", encoding="utf-8") as f:
+        f.write(json.dumps({"task_id": "t1", "arm": "A",
+                            "records": [dataclasses.asdict(rec1)]}) + "\n")
+        f.write(json.dumps({"task_id": "t2", "arm": "A",
+                            "records": [dataclasses.asdict(rec2)]}) + "\n")
+    # Round-trip read.
+    from forkling.experiment import run_experiment
+    # We can't easily call run_experiment without Ollama here, so just
+    # verify the format the loader expects.
+    lines = ckpt.read_text(encoding="utf-8").splitlines()
+    assert len(lines) == 2
+    obj1 = json.loads(lines[0])
+    assert obj1["task_id"] == "t1"
+    assert obj1["arm"] == "A"
+    assert len(obj1["records"]) == 1
+    assert obj1["records"][0]["committed"] is True
+    # Verify AttemptRecord reconstructs cleanly.
+    reconstructed = [AttemptRecord(**r) for r in obj1["records"]]
+    assert reconstructed[0].task_id == "t1"
+
+
+def test_experiment_cli_has_checkpoint_args():
+    """The CLI must expose --checkpoint and --resume-from so a killed
+    run is recoverable. Lost to disk: the 2026-09-25 exp002 run on
+    qwen2.5-coder:7b; 98 minutes of in-flight records vanished when
+    a background sleep task was cancelled and the task system swept
+    related processes. Don't let this happen again."""
+    result = subprocess.run(
+        [sys.executable, "-m", "forkling", "experiment", "run", "--help"],
+        cwd=str(REPO_ROOT),
+        capture_output=True,
+        text=True,
+        timeout=15,
+    )
+    assert "--checkpoint" in result.stdout, (
+        "experiment run CLI must expose --checkpoint so per-(task,arm) "
+        "results survive crashes"
+    )
+    assert "--resume-from" in result.stdout

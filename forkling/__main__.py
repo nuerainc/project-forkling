@@ -1073,6 +1073,12 @@ def build_parser() -> argparse.ArgumentParser:
     exr.add_argument("--arms", default="A,B,C",
                      help="Comma-separated arm ids (default A,B,C).")
     exr.add_argument("--out", required=True, help="Output JSON file.")
+    exr.add_argument("--checkpoint", default=None,
+                     help="Append JSONL checkpoint after each (task, arm) completes. "
+                          "Survives crashes; can be passed back via --resume-from.")
+    exr.add_argument("--resume-from", default=None,
+                     help="Resume from a previous checkpoint JSONL. Skips any "
+                          "(task, arm) pairs already completed.")
     exr.set_defaults(func=_experiment.cmd_experiment_run)
     ex.set_defaults(func=_experiment.cmd_experiment_run)
 
