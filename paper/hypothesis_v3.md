@@ -146,6 +146,7 @@ about mechanism.
 | Primary comparison | B vs A, B vs C | B vs A, B vs C | I vs P |
 | Number of LLM calls | 300 | 300 | 400 |
 | Pre-registered direction | B > A AND B > C | B > A AND B > C | I > P |
+| Model | `llama3.2:3b` (historical) | `qwen2.5-coder:3b` | `qwen2.5-coder:3b` |
 
 Everything else is held constant. Same benchmark. Same
 hard-coded alpha. Same exact Mann-Whitney U test.
@@ -219,20 +220,23 @@ Use the exact permutation distribution for N=10, implemented in
 python bench/validate_bench.py  # benchmark still frozen
 python -m forkling experiment run \
     --bench bench/FORKLAND-BENCH-001.jsonl \
-    --k 10 --model qwen2.5-coder:7b \
+    --k 10 --model qwen2.5-coder:3b \
     --seed 20261025 \
     --arms N,P,I,R \
+    --checkpoint results/exp003.ckpt.jsonl \
     --out results/exp003.json
 ```
 
-**Note on model:** this pre-registration assumes exp002 confirms
-the model works with the new prompt schema. If exp002's prompt
-fix didn't fully resolve the parse issue, exp003 falls back to
-`llama3.2:3b` with a known caveat. Either way, the *hypothesis*
-is preserved.
+**Note on model:** this pre-registration originally specified
+`qwen2.5-coder:7b`. Re-registered 2026-09-25 to `qwen2.5-coder:3b`
+after observing the 7b variant partial-offloads to CPU on this
+RTX 2050 (4 GB VRAM). The 3b fits fully in VRAM and is the largest
+coder model we can run end-to-end here. See
+[MODEL_DECISION.md](MODEL_DECISION.md). The *hypothesis* is
+preserved — model change is not a hypothesis change.
 
-Wall time on qwen2.5-coder:7b (warm): ~12s cold + ~0.5s × ~399
-≈ 3.5 min. Tractable.
+Wall time on qwen2.5-coder:3b (warm): ~8s cold + ~0.7s × ~399
+≈ 5 min. Tractable.
 
 ## 10. What I expect (NOT a hypothesis)
 

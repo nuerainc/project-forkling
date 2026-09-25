@@ -2,6 +2,7 @@
 
 **Author:** Jeremy Beebe
 **Date written:** 2026-09-25 (pre-registration; freeze before any pilot data is viewed)
+**Re-registered:** 2026-09-25 — model changed from `qwen2.5-coder:7b` to `qwen2.5-coder:3b` after observing the 7b variant partial-offloads to CPU on this RTX 2050 (4 GB VRAM). See [MODEL_DECISION.md](MODEL_DECISION.md).
 **Status:** ACTIVE — no pilot data has been inspected under this design
 **Predecessor:** [hypothesis.md](hypothesis.md) (exp001, NULL result, see [exp001_results.md](exp001_results.md))
 
@@ -39,7 +40,7 @@ being generally useless.
 ### H1 (alternative)
 
 After N=10 attempts per arm on FORKLAND-BENCH-001 (10 tasks ×
-10 attempts), Arm B (evolve + select with `qwen2.5-coder:7b` and
+10 attempts), Arm B (evolve + select with `qwen2.5-coder:3b` and
 the new worked-example prompt) achieves a higher mean pass@5 than
 Arm A (baseline with the same model and prompt) **and** higher than
 Arm C (random-accept with the same model and prompt), with both
@@ -72,7 +73,7 @@ alternative explanation for the exp001 null.
 
 | Variable | exp001 | exp002 |
 |---|---|---|
-| Model | `llama3.2:3b` | `qwen2.5-coder:7b` |
+| Model | `llama3.2:3b` | `qwen2.5-coder:3b` |
 | Prompt schema example | none (model invented JSON-Patch) | explicit worked example in prompt |
 | Seed | 20260925 | 20261025 (different to avoid carry-over) |
 
@@ -90,20 +91,31 @@ The seed change is the only intentional departure. Same seed would
 risk correlation if there's any non-determinism we missed; different
 seed is a free robustness check.
 
-## 4. Why qwen2.5-coder:7b specifically
+## 4. Why qwen2.5-coder:3b specifically
 
 Two reasons:
 
 1. **Coder-specific training.** It should produce syntactically
    correct Python more reliably than a general model, raising the
    parse_ok floor.
-2. **Already pulled.** It lives at `/api/tags` on this Ollama
-   instance (4.68 GB). No model download is needed.
+2. **Fits fully in 4 GB VRAM.** Unlike the 7b variant (5.12 GB on
+   disk, partial offload to CPU on this RTX 2050), the 3b model
+   (1.93 GB) loads entirely into VRAM and runs at full GPU speed.
+   Cold-load latency on this hardware: 8.3s. Warm latency: 0.7s.
+
+The original choice was `qwen2.5-coder:7b` to maximize the model's
+capability ceiling — but that variant doesn't fit on this machine
+within reasonable time (estimate 2+ hours per 300-call experiment
+due to GPU/CPU split-execution). The 3b variant is the largest
+coder model we can run end-to-end here. exp002 still tests the
+"stronger model + tighter prompt" hypothesis vs exp001; it just
+makes a smaller capability jump than originally planned.
 
 Other models that would be interesting to test in follow-ups
 (NOT in this pre-registration):
 
-- Larger code models (e.g., qwen2.5-coder:14b if the RAM budget allows)
+- A larger coder model on hardware with more VRAM (e.g.,
+  qwen2.5-coder:7b or :14b on a machine with 16+ GB VRAM)
 - General-purpose larger models (e.g., llama3.1:8b)
 - Frontier closed-API models (out of scope per project rules — Ollama
   only)
@@ -172,16 +184,17 @@ python bench/validate_bench.py
 # 2. Run the experiment.
 python -m forkling experiment run \
     --bench bench/FORKLAND-BENCH-001.jsonl \
-    --k 10 --model qwen2.5-coder:7b --seed 20261025 \
+    --k 10 --model qwen2.5-coder:3b --seed 20261025 \
+    --checkpoint results/exp002.ckpt.jsonl \
     --out results/exp002.json
 
 # 3. Summarize.
 python summarize_exp001.py  # works on any results/exp*.json
 ```
 
-Wall-time estimate on qwen2.5-coder:7b (warm): ~12s cold + ~0.5s
-per warm call × 299 ≈ 2.5 min. The full exp002 budget is much
-cheaper than exp001 was on llama3.2:3b.
+Wall-time estimate on qwen2.5-coder:3b (warm): ~8s cold + ~0.7s
+per warm call × 299 ≈ 3.5 min. The full exp002 budget is comparable
+to exp001's wall time on llama3.2:3b.
 
 ## 10. What we expect and why
 
