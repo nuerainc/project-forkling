@@ -127,7 +127,7 @@ def grade(task: BenchTask, patched_source: str,
 
     cleanup_workdir = False
     if workdir is None:
-        workdir = Path(tempfile.mkdtemp(prefix=f"forkland-bench-{task.id}-"))
+        workdir = Path(tempfile.mkdtemp(prefix=f"forkling-bench-{task.id}-"))
         cleanup_workdir = True
 
     try:
@@ -199,19 +199,25 @@ def _run_pytest(test_path: Path, workdir: Path) -> tuple[list[str], str]:
     return failed, ""
 
 
-def validate_frozenness(bench_root: Path) -> list[str]:
+def validate_frozenness(bench_root: Path,
+                        jsonl_name: str = "FORKLAND-BENCH-001.jsonl"
+                        ) -> list[str]:
     """Validate that the benchmark on disk is structurally well-formed.
 
     Returns a list of human-readable warnings. Empty list = OK.
 
     This is run BEFORE any agent sees the benchmark. If this raises,
     the benchmark is not frozen and must not be used.
+
+    jsonl_name defaults to FORKLAND-BENCH-001.jsonl for backward
+    compatibility; pass a different name to validate a sibling
+    benchmark (e.g., "FORKLAND-BENCH-002.jsonl").
     """
     msgs: list[str] = []
     if not bench_root.is_dir():
         return [f"bench root does not exist: {bench_root}"]
 
-    jsonl = bench_root / "FORKLAND-BENCH-001.jsonl"
+    jsonl = bench_root / jsonl_name
     if not jsonl.is_file():
         return [f"missing benchmark manifest: {jsonl}"]
 

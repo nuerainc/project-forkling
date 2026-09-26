@@ -1,4 +1,5 @@
 """Validate FORKLAND-BENCH-001: structurally complete AND expected fixes pass both visible and held-out."""
+import argparse
 import sys
 from pathlib import Path
 
@@ -11,10 +12,24 @@ from forkling.bench import (
 
 
 def main() -> int:
-    bench_root = Path(__file__).resolve().parent
-    jsonl = bench_root / "FORKLAND-BENCH-001.jsonl"
+    p = argparse.ArgumentParser(description=__doc__)
+    p.add_argument("--bench", default=None,
+                   help="Path to a specific benchmark JSONL. "
+                        "Default: validate FORKLAND-BENCH-001.jsonl "
+                        "in this script's parent directory.")
+    p.add_argument("--jsonl-name", default="FORKLAND-BENCH-001.jsonl",
+                   help="If --bench is not given, look for this filename "
+                        "in the bench/ directory (default: FORKLAND-BENCH-001.jsonl).")
+    args = p.parse_args()
 
-    msgs = validate_frozenness(bench_root)
+    bench_root = Path(__file__).resolve().parent
+    if args.bench:
+        jsonl = Path(args.bench)
+        bench_root = jsonl.parent
+    else:
+        jsonl = bench_root / args.jsonl_name
+
+    msgs = validate_frozenness(bench_root, jsonl_name=jsonl.name)
     if msgs:
         print("FROZENNESS FAILED:")
         for m in msgs:
