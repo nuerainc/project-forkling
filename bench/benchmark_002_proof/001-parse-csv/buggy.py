@@ -45,7 +45,4 @@ def parse_csv(text):
             else:
                 field += c
                 i += 1
-    # BUG: drops the last field if text doesn't end with newline.
-    # The expected behavior is to flush field/row when we reach EOF
-    # even without a trailing newline.
     return rows

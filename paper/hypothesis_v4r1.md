@@ -151,14 +151,15 @@ these changes.
 
 ### Candidate pool
 
-- N ≥ 10 candidates, authored and passing `bench/validate_bench.py`
-  **before** calibration runs. The three proof-of-concept tasks in
-  `bench/benchmark_002_proof/` count toward the pool.
+- N ≥ 10 candidates, authored and passing `bench/validate_bench.py
+  --strict` **before** calibration runs. The three proof-of-concept
+  tasks in `bench/benchmark_002_proof/` count toward the pool. (Done
+  2026-09-26: 12 candidates, listed in
+  `bench/benchmark_002_proof/DESIGN.md`.)
 - Each candidate has `prompt.md`, `buggy.py`, `visible_tests.py`
   (≥ 2 tests, at least one failing on `buggy.py`), `held_out_tests.py`
-  (≥ 3 tests) and `expected.py`. (The proof tasks keep their prompt in
-  a sibling `NNN-name.md`; move it to `prompt.md` so
-  `forkling.bench` can load them.)
+  (≥ 3 tests) and `expected.py`. The manifest's `prompt` field is the
+  text of `prompt.md`.
 - **`buggy.py` must not describe the bug.** The proof tasks contain
   comments such as `# BUG: drops the last field if text doesn't end
   with newline`, which hands the model the answer. Remove comments
@@ -273,7 +274,7 @@ answer the question and exp004 does not run.
 python -m pytest -q tests/test_experiment_power.py
 
 # 1. Validate the candidate pool.
-python bench/validate_bench.py \
+python bench/validate_bench.py --strict \
     --bench bench/benchmark_002_proof/FORKLAND-BENCH-002-candidates.jsonl
 
 # 2. Calibration: arm N, K=20, one replicate.

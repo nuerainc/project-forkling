@@ -1,8 +1,38 @@
-# FORKLAND-BENCH-002 — Proof of Concept
+# FORKLAND-BENCH-002 — Candidate Pool
 
-**Status:** PROOF OF CONCEPT — not yet a frozen benchmark. 3 sample
-tasks designed to validate the approach. exp003 (in flight) uses
-FORKLAND-BENCH-001, not this one.
+**Status (2026-09-26):** candidate pool for exp004
+([`paper/hypothesis_v4r1.md`](../../paper/hypothesis_v4r1.md) §6).
+**Not frozen.** 12 candidates, listed in
+[`FORKLAND-BENCH-002-candidates.jsonl`](FORKLAND-BENCH-002-candidates.jsonl).
+They pass `python bench/validate_bench.py --strict --bench
+bench/benchmark_002_proof/FORKLAND-BENCH-002-candidates.jsonl`. The
+frozen benchmark (`bench/FORKLAND-BENCH-002.jsonl`) will be written by
+`scripts/freeze_bench_002.py` from the calibration run, not by hand.
+
+| id | task | kind | bug |
+|---|---|---|---|
+| 001 | parse-csv | state_machine | last field/row dropped when input has no trailing newline |
+| 002 | deep-merge | recursive | nested dicts overwritten instead of merged |
+| 003 | word-frequencies | parser | last word dropped at end of input |
+| 004 | roman-to-int | parser | subtractive notation only handled for I |
+| 005 | rle-decode | parser | multi-digit counts keep only the last digit |
+| 006 | merge-intervals | algorithm | merged end not max()-ed, so contained intervals shrink it |
+| 007 | balanced-brackets | state_machine | mismatched or unmatched closers are ignored |
+| 008 | flatten | recursive | only one level of nesting flattened |
+| 009 | parse-duration | parser | number buffer not reset after a unit |
+| 010 | lru-cache | data_structure | get() does not refresh recency |
+| 011 | insert-position | algorithm | binary search returns rightmost, not leftmost, position |
+| 012 | wrap-text | string | joining space not counted toward line width |
+
+The "bug" column is for maintainers. Neither the prompts nor
+`buggy.py` name the bug. Comments that did so in 001–003 were removed,
+and `--strict` validation rejects them. Each task's held-out tests
+include cases the visible tests do not cover. For example, 004's
+visible tests only exercise `IX` and `XL`, and held-out adds `CD` and
+`CM`. This lets a patch that passes the visible tests still fail
+held-out, so a filter has something to catch.
+
+The rest of this file is the original proof-of-concept note.
 
 ## Why a second benchmark
 

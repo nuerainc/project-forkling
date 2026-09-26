@@ -15,7 +15,7 @@
 ![No paid APIs](https://img.shields.io/badge/no_paid_APIs-000000)
 ![Raspberry Pi Zero target](https://img.shields.io/badge/hardware-Pi_Zero_(512MB)-C51A4A?logo=raspberrypi)
 
-![Tests: 229 / 229 passing](https://img.shields.io/badge/tests-229%2F229_passing-2EA043)
+![Tests: 234 / 234 passing](https://img.shields.io/badge/tests-234%2F234_passing-2EA043)
 ![LLM: llama3.2:3b default](https://img.shields.io/badge/LLM-llama3.2%3A3b-FF6F00)
 ![365-day cycle: day 9 / 365](https://img.shields.io/badge/cycle-day_9%2F365-orange)
 

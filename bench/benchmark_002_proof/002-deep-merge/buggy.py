@@ -7,9 +7,6 @@ def deep_merge(a, b):
     out = dict(a)
     for k, v in b.items():
         if k in out:
-            # BUG: missing recursive case for nested dicts.
-            # The else branch below blindly overwrites dict-with-dict,
-            # losing the keys from a.
             if isinstance(out[k], list) and isinstance(v, list):
                 out[k] = out[k] + v
             else:

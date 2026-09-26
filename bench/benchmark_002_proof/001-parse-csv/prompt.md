@@ -13,4 +13,4 @@ Constraints:
 - Handle escaped quotes inside quoted fields (double-quote escape).
 - Handle empty input (return []).
 - Do NOT use the `csv` module from the standard library. Implement
-  parsing from scratch (the bug is about doing it correctly).
+  parsing from scratch.

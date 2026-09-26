@@ -7,8 +7,20 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from forkling.bench import (
-    load_benchmark, grade, validate_frozenness, expected_fix,
+    load_benchmark, grade, validate_frozenness, expected_fix, count_tests,
 )
+
+HINT_WORDS = ("bug", "fixme", "todo", "xxx", "hack", "wrong", "should")
+
+
+def hint_comments(source: str) -> list[str]:
+    """Comment lines in buggy.py that could point the model at the bug."""
+    hits = []
+    for line in source.splitlines():
+        comment = line.partition("#")[2].strip().lower()
+        if comment and any(w in comment for w in HINT_WORDS):
+            hits.append(line.strip())
+    return hits
 
 
 def main() -> int:
@@ -20,6 +32,11 @@ def main() -> int:
     p.add_argument("--jsonl-name", default="FORKLAND-BENCH-001.jsonl",
                    help="If --bench is not given, look for this filename "
                         "in the bench/ directory (default: FORKLAND-BENCH-001.jsonl).")
+    p.add_argument("--strict", action="store_true",
+                   help="Also enforce the FORKLAND-BENCH-002 authoring rules "
+                        "(paper/hypothesis_v4r1.md §6): >=2 visible and >=3 "
+                        "held-out tests, and no comments in buggy.py that "
+                        "hint at the bug.")
     args = p.parse_args()
 
     bench_root = Path(__file__).resolve().parent
@@ -58,7 +75,29 @@ def main() -> int:
             print(f"[FAIL] {t.id}: held-out tests fail on expected fix: {result.held_out_failed}")
             fail += 1
             continue
-        print(f"[OK]   {t.id} ({t.kind}): visible + held-out pass on expected fix")
+        buggy_src = (t.abs_path() / "buggy.py").read_text(encoding="utf-8")
+        if grade(t, buggy_src).visible_pass:
+            print(f"[FAIL] {t.id}: buggy.py passes every visible test "
+                  "(no selection signal)")
+            fail += 1
+            continue
+        if args.strict:
+            n_vis = count_tests(t.abs_path() / "visible_tests.py")
+            n_held = count_tests(t.abs_path() / "held_out_tests.py")
+            hints = hint_comments(buggy_src)
+            problems = []
+            if n_vis < 2:
+                problems.append(f"{n_vis} visible tests (need >= 2)")
+            if n_held < 3:
+                problems.append(f"{n_held} held-out tests (need >= 3)")
+            if hints:
+                problems.append(f"hint comments in buggy.py: {hints}")
+            if problems:
+                print(f"[FAIL] {t.id}: " + "; ".join(problems))
+                fail += 1
+                continue
+        print(f"[OK]   {t.id} ({t.kind}): expected fix passes visible + held-out; "
+              "buggy.py fails visible")
     if fail:
         print(f"\n{fail} task(s) failed validation. Benchmark is NOT frozen.")
         return 1
