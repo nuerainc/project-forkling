@@ -30,12 +30,18 @@ This is the cleanest mechanistic result yet:
   benchmark.
 - Re-ranking adds nothing over "just draw K" at this scale.
 
+> **Addendum (2026-09-26, after the analysis below was signed off):**
+> a harness audit found that this null does not bear on the
+> filter-vs-amplifier question. See [Validity caveat](#validity-caveat).
+> The pre-registered result stands as reported; its mechanism-level
+> interpretation does not.
+
 ## Pre-registered endpoint
 
 | Arm | pass@1 | pass@5 | pass@10 | parse_ok | commit |
 |---|---|---|---|---|---|
 | N (no-iterate) | 0.70 | 0.90 | 0.90 | 0.90 | 1.00 |
-| P (post-hoc re-rank) | (recompute) | **0.90** | (recompute) | 0.88 | 0.10 |
+| P (post-hoc re-rank) | 0.60 | **0.90** | 1.00 | 0.88 | 0.10 |
 | I (in-loop select) | 0.80 | 0.80 | 0.80 | 0.40 | 0.11 |
 | R (in-loop random) | 0.70 | 0.80 | 0.80 | 0.36 | 0.19 |
 
@@ -154,6 +160,91 @@ harder benchmark + the I vs P mechanism.
   selection hypothesis a fair test. FORKLAND-BENCH-002 (in
   proof-of-concept stage) is the right next step.
 
+## Validity caveat
+
+*Added 2026-09-26 after a read-through of `forkling/experiment.py`
+and the raw records in `results/exp003.json`. Nothing above was
+changed except the two arm P cells marked "(recompute)", now filled
+from the records by `scripts/summarize.py`.*
+
+The pre-registered test was run as written and is null. But the
+harness properties below mean exp003 could not have detected
+either a filter or an amplifier effect, so the mechanism-level
+conclusions above ("selection is neither an amplifier nor a useful
+filter") are **not supported** by this experiment. Points 1–3 also
+apply to exp001 and exp002; point 4 is specific to arm P.
+
+**1. The endpoint is blind to selection.** `pass_at_k`
+(`forkling/experiment.py`) returns 1 if *any* of the first k
+records passed held-out tests, regardless of `committed`. Arm P's
+re-ranker only sets `committed`, so P's pass@k is the pass@k of K
+independent draws: the same quantity as arm N, measured on a
+different sample. "P == N" is true by construction, not a finding.
+For the in-loop arms the selector likewise never affects pass@k
+directly; it only changes the source that later patches apply to
+(see 2).
+
+**2. The in-loop arms never see their own state.** `build_prompt`
+always shows the model the *original* `buggy.py`, while arms I and
+R apply each patch to the *current* (evolved) source. Once a patch
+is accepted, later patches usually quote an `old` string that no
+longer exists and fail to apply, which is recorded as
+`parse_fail`. parse_ok by attempt index, summed over the 10 tasks:
+
+| Arm | attempt 0 | attempts 1-9 (mean) |
+|---|---|---|
+| N | 9 | 9.0 |
+| P | 9 | 8.8 |
+| I | 9 | 3.4 |
+| R | 9 | 3.0 |
+
+All four arms start identically; only the arms that iterate
+collapse. The prompt also never includes previous attempts or test
+output, so there is no channel through which an "amplifier" could
+work. The I-vs-P comparison therefore contrasts a loop that mostly
+cannot apply its own patches with an endpoint that ignores
+re-ranking.
+
+**3. Ceiling.** Arm N pass@5 = 0.90 leaves one task of headroom
+out of ten. Even a correct harness would have had almost no power.
+(`hypothesis_v4.md` addresses this one only.)
+
+**4. The post-hoc re-ranker picked the worst candidate.**
+`arm_P_post_hoc_rerank` builds `(-score, idx, source)` tuples and then
+sorts with `key=lambda t: (-t[0], t[1])`, which is ascending in the
+*positive* score. Whenever at least one candidate failed the visible
+tests, the failing candidate with the lowest index was committed.
+This happened on tasks 001, 006 and 008. It does not change the
+pre-registered pass@5 (which ignores `committed`, point 1), but it
+means no exp003 number describes a working re-ranker. Re-ranking the
+same P draws correctly (most visible tests passed, earliest wins)
+returns a held-out-passing patch on 10/10 tasks. On this benchmark
+none of the 127 visible-passing draws in arms N and P failed held-out
+tests, so a correct filter cannot go wrong here.
+
+**Exploratory, not pre-registered:** the held-out pass rate of the
+patch each arm would actually return (N: first attempt; P: the
+re-ranker's winner; I/R: the last committed patch, else the
+unfixed file) is N 0.70, P 0.70, I 0.70, R 0.50 as recorded. P's 0.70
+reflects the inverted re-ranker (point 4); a correct re-ranker on the
+same draws gives 1.00. Three tasks differ between N and a correct P,
+all in P's favor: suggestive of a filter effect, but post hoc and far
+too few tasks to test (exact Wilcoxon, n = 3: p = 0.25).
+
+**Also noted:** the `metrics` block in `results/exp003.json` is
+keyed A/B/C. `compute_metrics` hardcodes those letters and the
+N/I/R arm functions are aliases that label their records A/B/C, so
+`metrics.A/B/C` are really N/I/R and P is absent. `per_task_pass_at_5`
+and `stats` use the correct letters.
+
+**Consequence for exp004:** a harder benchmark alone
+(`hypothesis_v4.md`) would reproduce issues 1, 2 and 4. exp004 is
+re-registered in [`hypothesis_v4r1.md`](hypothesis_v4r1.md) with a
+selection-sensitive endpoint, a loop that sees its own state and
+feedback, and the calibrated benchmark. The fixed harness is
+`forkling/experiment2.py` (`--protocol 2`). A pre-registered rerun of
+exp003 on it is [`hypothesis_v3b.md`](hypothesis_v3b.md) (exp003b).
+
 ## Reproducibility
 
 ```bash
@@ -164,7 +255,7 @@ python -m forkling experiment run \
     --arms N,P,I,R \
     --checkpoint results/exp003.ckpt.jsonl \
     --out results/exp003.json
-python summarize3.py   # see results/exp003.json
+python scripts/summarize.py results/exp003.json
 ```
 
 ---

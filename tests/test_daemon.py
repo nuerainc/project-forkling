@@ -201,7 +201,10 @@ def test_daemon_cli_start_then_stop(tmp_path, monkeypatch):
     # real heartbeat by using a heartbeat that doesn't exist in this
     # tmp repo — the daemon's _invoke_heartbeat will fail with a
     # non-zero exit, which we treat as a soft warning (default mode).
-    # max_ticks=1 ensures it exits after one tick.
+    # max_ticks=2 with a 2s interval keeps the daemon alive long enough to
+    # observe the pidfile even when the heartbeat subprocess fails fast
+    # (e.g. forkling not pip-installed, so `python -m forkling` in the tmp
+    # repo exits immediately), then it exits on its own.
     import os
     env = os.environ.copy()
     env["FORKLING_MEMORY"] = str(tmp_path / "mem")
@@ -213,7 +216,7 @@ def test_daemon_cli_start_then_stop(tmp_path, monkeypatch):
     # --restart-on-failure is set, so the daemon keeps running).
     proc = subprocess.Popen(
         [sys.executable, "-m", "forkling", "daemon", "start",
-         "--repo", str(repo), "--every", "1", "--max-ticks", "1"],
+         "--repo", str(repo), "--every", "2", "--max-ticks", "2"],
         env=env,
         stdout=subprocess.PIPE, stderr=subprocess.PIPE,
     )

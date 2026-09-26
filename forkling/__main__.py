@@ -1079,6 +1079,7 @@ def build_parser() -> argparse.ArgumentParser:
     exr.add_argument("--resume-from", default=None,
                      help="Resume from a previous checkpoint JSONL. Skips any "
                           "(task, arm) pairs already completed.")
+    _experiment.add_protocol_args(exr)
     exr.set_defaults(func=_experiment.cmd_experiment_run)
     ex.set_defaults(func=_experiment.cmd_experiment_run)
 

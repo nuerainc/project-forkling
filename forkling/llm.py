@@ -45,11 +45,15 @@ class LLM:
         model: str = "qwen3:4b",
         timeout: int = 120,
         trace: "Trace | None" = None,
+        options: dict | None = None,
     ) -> None:
         self.url = url.rstrip("/")
         self.model = model
         self.timeout = timeout
         self._trace = trace
+        # Ollama sampling options (temperature, seed, ...) sent with every
+        # call. Experiments pin these for reproducibility.
+        self.options = dict(options or {})
 
     def attach_trace(self, trace: "Trace") -> None:
         """Attach a Trace for LLM-call logging. Idempotent."""
@@ -58,7 +62,8 @@ class LLM:
     # ---- public API --------------------------------------------------------
 
     def complete(self, prompt: str, system: str | None = None,
-                 kind: str = "complete", task: str = "") -> Completion:
+                 kind: str = "complete", task: str = "",
+                 options: dict | None = None) -> Completion:
         """Return a Completion. Tries Ollama; falls back to the rule-based planner.
 
         If a Trace is attached, the call is logged with the given kind/task
@@ -67,7 +72,8 @@ class LLM:
         """
         t0 = time.monotonic()
         try:
-            text = self._call_ollama(prompt, system=system, stream=False)
+            text = self._call_ollama(prompt, system=system, stream=False,
+                                     options=options)
             if text:
                 completion = Completion(text=text, used_llm=True, model=self.model)
                 self._maybe_trace(kind, prompt, system, task, t0, completion)
@@ -120,8 +126,12 @@ class LLM:
 
     # ---- internals ---------------------------------------------------------
 
-    def _call_ollama(self, prompt: str, system: str | None, stream: bool) -> str:
+    def _call_ollama(self, prompt: str, system: str | None, stream: bool,
+                     options: dict | None = None) -> str:
         body = {"model": self.model, "prompt": prompt, "stream": stream}
+        merged = {**self.options, **(options or {})}
+        if merged:
+            body["options"] = merged
         # qwen3 (and other "thinking" models) emit huge "thinking" blocks by
         # default that dwarf the actual answer. Disable when supported.
         if self._supports_think_option():

@@ -15,4 +15,4 @@ Constraints:
   and whitespace are separators.
 - Match is case-insensitive; output keys are lowercase.
 - Do NOT use the `re` module from the standard library. Implement
-  parsing from scratch (the bug is about doing it correctly).
+  parsing from scratch.

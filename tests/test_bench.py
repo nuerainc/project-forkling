@@ -239,7 +239,7 @@ def test_prompt_template_includes_schema_example():
     """The prompt must show a worked example of the expected JSON shape.
 
     Without an example, qwen2.5-coder:7b invented RFC-6902 JSON-Patch
-    format (probe_qwen.py, 2026-09-25). With the example, it follows
+    format (scripts/probes/probe_qwen.py, 2026-09-25). With the example, it follows
     the schema exactly. This is load-bearing for any model other than
     the smallest llama3.2 family.
     """

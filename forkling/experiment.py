@@ -3,6 +3,11 @@
 This is the implementation of the pre-registered hypothesis in
 paper/hypothesis.md. **Read that file before changing this one.**
 
+This module is protocol 1, frozen so exp001-exp003 stay reproducible.
+New experiments use protocol 2 (forkling/experiment2.py, selected with
+``--protocol 2``); see paper/exp003_results.md, "Validity caveat", for
+why.
+
 Arms:
   A: baseline        — one-shot generation. K independent draws per task.
   B: evolve + select — iterate, keep patches that pass visible tests.
@@ -586,6 +591,9 @@ def run_experiment(
 # ----- CLI -----------------------------------------------------------------
 
 def cmd_experiment_run(args: argparse.Namespace) -> int:
+    if args.protocol == 2:
+        from . import experiment2
+        return experiment2.cmd_run(args)
     out_path = Path(args.out)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     print(f"[exp] loading benchmark from {args.bench}")
@@ -638,6 +646,19 @@ def cmd_experiment_run(args: argparse.Namespace) -> int:
     return 0
 
 
+def add_protocol_args(parser: argparse.ArgumentParser) -> None:
+    """Options shared by `forkling experiment run` and this module's CLI."""
+    parser.add_argument("--protocol", type=int, choices=(1, 2), default=1,
+                        help="1 = exp001-exp003 harness (kept for reproduction); "
+                             "2 = fixed harness from paper/hypothesis_v4r1.md "
+                             "(returned-patch endpoint, in-loop feedback, "
+                             "replicates, paired Wilcoxon).")
+    parser.add_argument("--replicates", type=int, default=5,
+                        help="Protocol 2 only: replicates per (task, arm).")
+    parser.add_argument("--temperature", type=float, default=0.8,
+                        help="Protocol 2 only: pinned Ollama sampling temperature.")
+
+
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(prog="forkling experiment")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -660,6 +681,7 @@ def main(argv: list[str] | None = None) -> int:
     pr.add_argument("--resume-from", default=None,
                     help="Resume from a previous checkpoint JSONL. Skips any "
                          "(task, arm) pairs already completed.")
+    add_protocol_args(pr)
     pr.set_defaults(func=cmd_experiment_run)
 
     args = p.parse_args(argv)

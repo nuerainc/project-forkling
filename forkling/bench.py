@@ -19,6 +19,7 @@ Public surface:
 """
 from __future__ import annotations
 
+import ast
 import dataclasses
 import json
 import shutil
@@ -57,6 +58,11 @@ class GradeResult:
     visible_failed: list[str]
     held_out_failed: list[str]
     error: str = ""
+    # Added for protocol 2 (paper/hypothesis_v4r1.md): lets selectors rank
+    # partial fixes and lets the in-loop prompt show test feedback.
+    visible_total: int = 0
+    visible_passed: int = 0
+    visible_output: str = ""
 
     def passes_held_out(self) -> bool:
         return self.held_out_pass and not self.error
@@ -143,11 +149,14 @@ def grade(task: BenchTask, patched_source: str,
         (dst / "buggy.py").write_text(patched_source, encoding="utf-8")
 
         # Run visible tests.
-        v_failed, v_err = _run_pytest(dst / "visible_tests.py", workdir)
+        v_failed, v_err, v_out = _run_pytest_detailed(
+            dst / "visible_tests.py", workdir)
         # Run held-out tests (separate process so a visible-test crash
         # cannot leak into held-out grading).
         h_failed, h_err = _run_pytest(dst / "held_out_tests.py", workdir)
 
+        v_total = count_tests(dst / "visible_tests.py")
+        v_passed = 0 if v_err else max(v_total - len(v_failed), 0)
         return GradeResult(
             task_id=task.id,
             visible_pass=(len(v_failed) == 0 and not v_err),
@@ -155,10 +164,24 @@ def grade(task: BenchTask, patched_source: str,
             visible_failed=v_failed,
             held_out_failed=h_failed,
             error=v_err or h_err,
+            visible_total=v_total,
+            visible_passed=v_passed,
+            visible_output=v_out,
         )
     finally:
         if cleanup_workdir:
             shutil.rmtree(workdir, ignore_errors=True)
+
+
+def count_tests(test_path: Path) -> int:
+    """Number of module-level ``test_*`` functions in a test file."""
+    try:
+        tree = ast.parse(test_path.read_text(encoding="utf-8"))
+    except (OSError, SyntaxError):
+        return 0
+    return sum(1 for node in tree.body
+               if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+               and node.name.startswith("test_"))
 
 
 def _run_pytest(test_path: Path, workdir: Path) -> tuple[list[str], str]:
@@ -167,22 +190,33 @@ def _run_pytest(test_path: Path, workdir: Path) -> tuple[list[str], str]:
     failed_names: list of "<file>::<testname>" for each failing test.
     error: stderr if pytest itself crashed (collection error, etc.).
     """
+    failed, error, _ = _run_pytest_detailed(test_path, workdir, tb="no")
+    return failed, error
+
+
+def _run_pytest_detailed(test_path: Path, workdir: Path, tb: str = "short"
+                         ) -> tuple[list[str], str, str]:
+    """Like _run_pytest, plus pytest's stdout (empty when all tests pass).
+
+    The pass/fail outcome does not depend on ``tb``; it only controls how
+    much traceback text ends up in the returned output.
+    """
     try:
         result = subprocess.run(
             [sys.executable, "-m", "pytest", str(test_path),
-             "--tb=no", "-q", "--no-header"],
+             f"--tb={tb}", "-q", "--no-header", "-p", "no:cacheprovider"],
             cwd=str(workdir),
             capture_output=True,
             text=True,
             timeout=30,
         )
     except subprocess.TimeoutExpired:
-        return [], "pytest timeout"
+        return [], "pytest timeout", ""
     except Exception as e:  # pragma: no cover
-        return [], f"pytest launch failed: {e}"
+        return [], f"pytest launch failed: {e}", ""
 
     if result.returncode == 0:
-        return [], ""
+        return [], "", ""
 
     # Parse "FAILED <file>::<test>" lines from stdout.
     failed: list[str] = []
@@ -194,9 +228,9 @@ def _run_pytest(test_path: Path, workdir: Path) -> tuple[list[str], str]:
     # If pytest returned non-zero but we couldn't parse FAILED lines,
     # it's likely a collection error or crash.
     if not failed and result.returncode != 0:
-        return [], (result.stderr or result.stdout).strip()[:500]
+        return [], (result.stderr or result.stdout).strip()[:500], result.stdout
 
-    return failed, ""
+    return failed, "", result.stdout
 
 
 def validate_frozenness(bench_root: Path,
@@ -260,6 +294,7 @@ __all__ = [
     "GradeResult",
     "load_benchmark",
     "grade",
+    "count_tests",
     "validate_frozenness",
     "expected_fix",
 ]

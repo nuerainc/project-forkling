@@ -15,9 +15,9 @@
 ![No paid APIs](https://img.shields.io/badge/no_paid_APIs-000000)
 ![Raspberry Pi Zero target](https://img.shields.io/badge/hardware-Pi_Zero_(512MB)-C51A4A?logo=raspberrypi)
 
-![Tests: 225 / 225 passing](https://img.shields.io/badge/tests-225%2F225_passing-2EA043)
+![Tests: 234 / 234 passing](https://img.shields.io/badge/tests-234%2F234_passing-2EA043)
 ![LLM: llama3.2:3b default](https://img.shields.io/badge/LLM-llama3.2%3A3b-FF6F00)
-![365-day cycle: day 7 / 365](https://img.shields.io/badge/cycle-day_7%2F365-orange)
+![365-day cycle: day 9 / 365](https://img.shields.io/badge/cycle-day_9%2F365-orange)
 
 [**TL;DR**](#tldr) ·
 [**Quick start**](#quick-start) ·
@@ -40,11 +40,14 @@ Forkling is a 365-day, **self-contained, evolutionary AI organism** that lives e
 
 ## Current research
 
-**Status (day 9):** substrate complete, harness complete, three
-pre-registered experiments run, two null results so far. We do
-not yet claim this advances the state of the art — but we have
-a reproducible experiment infrastructure and a clean null result
-to publish when the third experiment lands.
+**Status (day 9):** substrate complete, three pre-registered
+experiments run, three null results. A post-hoc audit found that
+the experiment harness could not have detected a selection effect
+(see [exp003 validity caveat](paper/exp003_results.md#validity-caveat)),
+so the nulls say little about selection itself. exp004 is
+re-registered to fix the harness and move to a harder benchmark
+before any exp004 data is collected. We do not claim this advances
+the state of the art.
 
 ### Active hypothesis chain
 
@@ -52,7 +55,9 @@ to publish when the third experiment lands.
 |---|---|---|
 | **exp001** — does selection help? | [`paper/hypothesis.md`](paper/hypothesis.md) | **NULL** ([results](paper/exp001_results.md)) |
 | **exp002** — does it help on a stronger model + tighter prompt? | [`paper/hypothesis_v2.md`](paper/hypothesis_v2.md) | **NULL** ([results](paper/exp002_results.md)) |
-| **exp003** — is selection a filter or an amplifier? | [`paper/hypothesis_v3.md`](paper/hypothesis_v3.md) | **running** |
+| **exp003** — is selection a filter or an amplifier? | [`paper/hypothesis_v3.md`](paper/hypothesis_v3.md) | **NULL**, not informative ([results](paper/exp003_results.md), [caveat](paper/exp003_results.md#validity-caveat)) |
+| **exp003b** — exp003 rerun on the fixed harness | [`paper/hypothesis_v3b.md`](paper/hypothesis_v3b.md) | **pre-registered**, not yet run |
+| **exp004** — the same question, with a selection-sensitive endpoint on a harder benchmark | [`paper/hypothesis_v4r1.md`](paper/hypothesis_v4r1.md) (supersedes [`hypothesis_v4.md`](paper/hypothesis_v4.md)) | **pre-registered**, not yet run (benchmark calibration first) |
 
 ### exp003 — the mechanism question
 
@@ -65,6 +70,47 @@ re-ranking of K independent draws, the loop is amplifying. If
 they tie, the loop is just a filter — and the entire "evolve loop"
 paradigm could be replaced with a much simpler "draw N, re-rank"
 pipeline. Either result is publishable.
+
+**Result: NULL.** pass@5 was I = 0.80 vs P = 0.90 (U = 45,
+p = 0.71), with P identical to N. Afterwards we found that the
+result can't answer the question it was designed for:
+
+- **The endpoint ignores selection.** pass@5 counts a task as solved
+  if *any* of the first five draws passes the held-out tests, whether
+  or not the arm chose it. Post-hoc re-ranking therefore cannot move
+  it; P == N is true by construction.
+- **The in-loop arms can't build on their own progress.** The prompt
+  always shows the original `buggy.py`, but patches are applied to
+  the evolved file. After the first accepted patch most later patches
+  no longer apply: parse_ok falls from 0.9 to about 0.3 in arms I and
+  R, but not in N or P.
+- **The re-ranker was inverted.** It sorted candidates the wrong way
+  and returned the *worst* one whenever a failing candidate existed.
+  Re-ranked correctly, the same draws give a working fix on 10/10 tasks
+  vs 7/10 for one-shot (post hoc, not a test).
+- **The benchmark is near ceiling** (arm N pass@5 = 0.90).
+
+exp001 and exp002 share the first two problems. Full details are in the
+[validity caveat](paper/exp003_results.md#validity-caveat).
+
+### exp004 — re-registered
+
+[`paper/hypothesis_v4r1.md`](paper/hypothesis_v4r1.md) keeps the
+exp003 question and arms but changes three things before any data
+is collected: the primary endpoint becomes the held-out pass rate
+of the patch each arm actually *returns* (so selection can matter);
+the in-loop arms prompt with the current source plus the last
+failing test output (so iteration can matter); and it runs on
+FORKLAND-BENCH-002, a harder benchmark calibrated so arm N leaves
+headroom. It also adds a harness self-test that must pass before
+the experiment runs.
+
+The fixed harness is `forkling/experiment2.py`, selected with
+`--protocol 2`. The default is `--protocol 1`, the exp001–003 harness,
+kept unchanged so those results stay reproducible.
+[`tests/test_experiment_power.py`](tests/test_experiment_power.py)
+runs it against scripted models with a known filter effect, a known
+amplifier effect and no effect, and requires it to tell them apart.
 
 ### Benchmark
 
@@ -87,7 +133,7 @@ reasonable time.
 # Validate the benchmark is still frozen.
 python bench/validate_bench.py
 
-# Run any of the three experiments.
+# Reproduce exp003 exactly (protocol 1, the original harness).
 python -m forkling experiment run \
     --bench bench/FORKLAND-BENCH-001.jsonl \
     --k 10 --model qwen2.5-coder:3b --seed 20261025 \
@@ -95,8 +141,19 @@ python -m forkling experiment run \
     --checkpoint results/exp003.ckpt.jsonl \
     --out results/exp003.json
 
+# exp003b: the same question on the fixed harness (protocol 2).
+# The harness self-test must pass first.
+python -m pytest -q tests/test_experiment_power.py
+python -m forkling experiment run --protocol 2 \
+    --bench bench/FORKLAND-BENCH-001.jsonl \
+    --k 10 --replicates 5 --temperature 0.8 \
+    --model qwen2.5-coder:3b --seed 20261025 \
+    --arms N,P,I,R \
+    --checkpoint results/exp003b.ckpt.jsonl \
+    --out results/exp003b.json
+
 # Summarize any results/exp*.json.
-python summarize.py results/exp003.json
+python scripts/summarize.py results/exp003.json
 ```
 
 The `--checkpoint` flag flushes every (task, arm) pair to a JSONL
@@ -138,7 +195,7 @@ The point of this framing isn't metaphor — it's that the system behaves like a
 
 ```bash
 git clone https://github.com/nuerainc/project-forkling.git
-cd forkling
+cd project-forkling
 pip install pytest                # dev dep; runtime is stdlib only
 
 # (optional) start a local Ollama daemon — not required

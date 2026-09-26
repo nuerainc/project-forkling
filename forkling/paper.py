@@ -79,6 +79,35 @@ Most recent milestones:
 
 {format_milestones_placeholder}
 
+### 1.5 Controlled experiments
+
+Three pre-registered experiments have run on FORKLAND-BENCH-001
+(10 one-line Python bug fixes, K=10 attempts per task per arm).
+All three are **null** under their pre-registered tests:
+
+| Experiment | Question | Primary result |
+|---|---|---|
+| exp001 (`paper/hypothesis.md`) | Does in-loop selection beat one-shot and random acceptance? | NULL |
+| exp002 (`paper/hypothesis_v2.md`) | Same, with `qwen2.5-coder:3b` and a tighter prompt | NULL |
+| exp003 (`paper/hypothesis_v3.md`) | Is selection a filter or an amplifier (in-loop I vs post-hoc P)? | NULL: pass@5 I=0.80 vs P=0.90, U=45, p=0.71 |
+
+A post-hoc audit of the harness (`paper/exp003_results.md`, section
+"Validity caveat") found that these nulls cannot be read as evidence
+about selection. Two properties of the harness, not of the model,
+decide the outcome: the pass@k endpoint counts any held-out pass
+among the first k draws whether or not the arm selected it, so it is
+blind to post-hoc re-ranking by construction; and the in-loop arms
+always prompt with the original `buggy.py` while applying patches to
+the evolved source, so after the first accepted patch most later
+patches no longer apply (in-loop parse_ok falls from 0.9 at attempt 0
+to about 0.3 afterwards). exp003's post-hoc re-ranker also sorted
+candidates the wrong way and committed the worst one. The benchmark
+is also near ceiling (arm N pass@5 = 0.90). A fixed harness
+(`forkling/experiment2.py`, protocol 2) must pass a self-test with
+scripted models before use. exp003b (`paper/hypothesis_v3b.md`) reruns
+exp003 on it, and exp004 is re-registered in
+`paper/hypothesis_v4r1.md` on a harder, calibrated benchmark.
+
 ## 2. Substrate thesis (vs DGM)
 
 The git-as-substrate thesis sits at the intersection of three
