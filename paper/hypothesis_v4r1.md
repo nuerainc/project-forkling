@@ -36,7 +36,10 @@ explanation that a harder benchmark does not fix:
    afterwards; N and P stay at 0.9). The prompt also never shows
    earlier attempts or test output, so there is no channel for
    amplification.
-3. **The v4 freeze rule is not computable as written.** §3 step 4
+3. **The re-ranker was inverted.** exp003's arm P committed the
+   *lowest*-scoring candidate whenever one failed the visible tests
+   (see the caveat, point 4); v4 reuses it unchanged.
+4. **The v4 freeze rule is not computable as written.** §3 step 4
    targets "`arm N pass@5 ∈ [0.2, 0.4]` per task", but per-task
    pass@5 is 0 or 1.
 
@@ -193,7 +196,11 @@ before calibration runs. It reads
 
 ## 7. Harness changes (must land before calibration)
 
-Each change comes with a unit test that runs without Ollama.
+Each change comes with a unit test that runs without Ollama. All of
+them are implemented in `forkling/experiment2.py` (`--protocol 2`),
+with protocol 1 left unchanged for reproducing exp001–003. Items 1
+and 2 are satisfied by the new module rather than by editing
+`compute_metrics`.
 
 1. **Arm labels.** Records carry the arm letter that was requested
    (today the N/I/R aliases label records A/B/C), and
@@ -207,8 +214,11 @@ Each change comes with a unit test that runs without Ollama.
    exp003 prompt.
 4. **Visible-test count.** `bench.grade` reports passed/total for
    visible tests; P ranks and I accepts on it.
-5. **Deterministic sub-seeds.** `run_experiment` derives per-arm
-   seeds with `hash((arm, task.id))`. Python randomizes `str`
+5. **Deterministic sub-seeds** (and common random numbers: the
+   per-call seed depends on seed, task, replicate and attempt, not on
+   the arm, so arms with identical prompts get identical samples and
+   their difference has lower variance). Protocol 1's `run_experiment`
+   derives per-arm seeds with `hash((arm, task.id))`, and Python randomizes `str`
    hashes per process unless `PYTHONHASHSEED` is set, so arm R's
    coin flips in exp001–003 are not reproducible from the recorded
    seed. Use a stable hash (e.g. `zlib.crc32`) of
@@ -258,30 +268,30 @@ answer the question and exp004 does not run.
 
 ## 9. Reproducibility
 
-Commands marked *new* depend on the harness changes in §7.
-
 ```bash
-# 0. Harness gate (new).
+# 0. Harness gate.
 python -m pytest -q tests/test_experiment_power.py
 
 # 1. Validate the candidate pool.
 python bench/validate_bench.py \
     --bench bench/benchmark_002_proof/FORKLAND-BENCH-002-candidates.jsonl
 
-# 2. Calibration: arm N, K=20.
-python -m forkling experiment run \
+# 2. Calibration: arm N, K=20, one replicate.
+python -m forkling experiment run --protocol 2 \
     --bench bench/benchmark_002_proof/FORKLAND-BENCH-002-candidates.jsonl \
-    --k 20 --model qwen2.5-coder:3b --seed 20261025 --arms N \
+    --k 20 --replicates 1 --temperature 0.8 \
+    --model qwen2.5-coder:3b --seed 20261025 --arms N \
     --out results/exp004_calibration.json
 
-# 3. Freeze (new script, committed before step 2 runs).
+# 3. Freeze (committed before step 2 runs).
 python scripts/freeze_bench_002.py
 python bench/validate_bench.py --bench bench/FORKLAND-BENCH-002.jsonl
 
-# 4. Main run (--replicates is new).
-python -m forkling experiment run \
+# 4. Main run.
+python -m forkling experiment run --protocol 2 \
     --bench bench/FORKLAND-BENCH-002.jsonl \
-    --k 10 --replicates 5 --model qwen2.5-coder:3b --seed 20261025 \
+    --k 10 --replicates 5 --temperature 0.8 \
+    --model qwen2.5-coder:3b --seed 20261025 \
     --arms N,P,I,R \
     --checkpoint results/exp004.ckpt.jsonl \
     --out results/exp004.json

@@ -15,7 +15,7 @@
 ![No paid APIs](https://img.shields.io/badge/no_paid_APIs-000000)
 ![Raspberry Pi Zero target](https://img.shields.io/badge/hardware-Pi_Zero_(512MB)-C51A4A?logo=raspberrypi)
 
-![Tests: 215 / 215 passing](https://img.shields.io/badge/tests-215%2F215_passing-2EA043)
+![Tests: 229 / 229 passing](https://img.shields.io/badge/tests-229%2F229_passing-2EA043)
 ![LLM: llama3.2:3b default](https://img.shields.io/badge/LLM-llama3.2%3A3b-FF6F00)
 ![365-day cycle: day 9 / 365](https://img.shields.io/badge/cycle-day_9%2F365-orange)
 
@@ -56,6 +56,7 @@ the state of the art.
 | **exp001** — does selection help? | [`paper/hypothesis.md`](paper/hypothesis.md) | **NULL** ([results](paper/exp001_results.md)) |
 | **exp002** — does it help on a stronger model + tighter prompt? | [`paper/hypothesis_v2.md`](paper/hypothesis_v2.md) | **NULL** ([results](paper/exp002_results.md)) |
 | **exp003** — is selection a filter or an amplifier? | [`paper/hypothesis_v3.md`](paper/hypothesis_v3.md) | **NULL**, not informative ([results](paper/exp003_results.md), [caveat](paper/exp003_results.md#validity-caveat)) |
+| **exp003b** — exp003 rerun on the fixed harness | [`paper/hypothesis_v3b.md`](paper/hypothesis_v3b.md) | **not started** (draft pre-registration) |
 | **exp004** — the same question, with a selection-sensitive endpoint on a harder benchmark | [`paper/hypothesis_v4r1.md`](paper/hypothesis_v4r1.md) (supersedes [`hypothesis_v4.md`](paper/hypothesis_v4.md)) | **not started** (benchmark calibration first) |
 
 ### exp003 — the mechanism question
@@ -83,6 +84,10 @@ result can't answer the question it was designed for:
   the evolved file. After the first accepted patch most later patches
   no longer apply: parse_ok falls from 0.9 to about 0.3 in arms I and
   R, but not in N or P.
+- **The re-ranker was inverted.** It sorted candidates the wrong way
+  and returned the *worst* one whenever a failing candidate existed.
+  Re-ranked correctly, the same draws give a working fix on 10/10 tasks
+  vs 7/10 for one-shot (post hoc, not a test).
 - **The benchmark is near ceiling** (arm N pass@5 = 0.90).
 
 exp001 and exp002 share the first two problems. Full details are in the
@@ -99,6 +104,13 @@ failing test output (so iteration can matter); and it runs on
 FORKLAND-BENCH-002, a harder benchmark calibrated so arm N leaves
 headroom. It also adds a harness self-test that must pass before
 the experiment runs.
+
+The fixed harness is `forkling/experiment2.py`, selected with
+`--protocol 2`. The default is `--protocol 1`, the exp001–003 harness,
+kept unchanged so those results stay reproducible.
+[`tests/test_experiment_power.py`](tests/test_experiment_power.py)
+runs it against scripted models with a known filter effect, a known
+amplifier effect and no effect, and requires it to tell them apart.
 
 ### Benchmark
 
@@ -121,13 +133,24 @@ reasonable time.
 # Validate the benchmark is still frozen.
 python bench/validate_bench.py
 
-# Run any of the three experiments.
+# Reproduce exp003 exactly (protocol 1, the original harness).
 python -m forkling experiment run \
     --bench bench/FORKLAND-BENCH-001.jsonl \
     --k 10 --model qwen2.5-coder:3b --seed 20261025 \
     --arms N,P,I,R \
     --checkpoint results/exp003.ckpt.jsonl \
     --out results/exp003.json
+
+# exp003b: the same question on the fixed harness (protocol 2).
+# The harness self-test must pass first.
+python -m pytest -q tests/test_experiment_power.py
+python -m forkling experiment run --protocol 2 \
+    --bench bench/FORKLAND-BENCH-001.jsonl \
+    --k 10 --replicates 5 --temperature 0.8 \
+    --model qwen2.5-coder:3b --seed 20261025 \
+    --arms N,P,I,R \
+    --checkpoint results/exp003b.ckpt.jsonl \
+    --out results/exp003b.json
 
 # Summarize any results/exp*.json.
 python scripts/summarize.py results/exp003.json

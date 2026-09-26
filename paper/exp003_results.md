@@ -167,12 +167,12 @@ and the raw records in `results/exp003.json`. Nothing above was
 changed except the two arm P cells marked "(recompute)", now filled
 from the records by `scripts/summarize.py`.*
 
-The pre-registered test was run as written and is null. But three
-properties of the harness mean exp003 could not have detected
+The pre-registered test was run as written and is null. But the
+harness properties below mean exp003 could not have detected
 either a filter or an amplifier effect, so the mechanism-level
 conclusions above ("selection is neither an amplifier nor a useful
-filter") are **not supported** by this experiment. The same issues
-apply to exp001 and exp002.
+filter") are **not supported** by this experiment. Points 1–3 also
+apply to exp001 and exp002; point 4 is specific to arm P.
 
 **1. The endpoint is blind to selection.** `pass_at_k`
 (`forkling/experiment.py`) returns 1 if *any* of the first k
@@ -209,13 +209,27 @@ re-ranking.
 out of ten. Even a correct harness would have had almost no power.
 (`hypothesis_v4.md` addresses this one only.)
 
+**4. The post-hoc re-ranker picked the worst candidate.**
+`arm_P_post_hoc_rerank` builds `(-score, idx, source)` tuples and then
+sorts with `key=lambda t: (-t[0], t[1])`, which is ascending in the
+*positive* score. Whenever at least one candidate failed the visible
+tests, the failing candidate with the lowest index was committed.
+This happened on tasks 001, 006 and 008. It does not change the
+pre-registered pass@5 (which ignores `committed`, point 1), but it
+means no exp003 number describes a working re-ranker. Re-ranking the
+same P draws correctly (most visible tests passed, earliest wins)
+returns a held-out-passing patch on 10/10 tasks. On this benchmark
+none of the 127 visible-passing draws in arms N and P failed held-out
+tests, so a correct filter cannot go wrong here.
+
 **Exploratory, not pre-registered:** the held-out pass rate of the
 patch each arm would actually return (N: first attempt; P: the
 re-ranker's winner; I/R: the last committed patch, else the
-unfixed file) is N 0.70, P 0.70, I 0.70, R 0.50. This is the
-quantity a filter-vs-amplifier question needs, and it does not
-separate the arms either, but with 10 tasks near ceiling it has
-little power.
+unfixed file) is N 0.70, P 0.70, I 0.70, R 0.50 as recorded. P's 0.70
+reflects the inverted re-ranker (point 4); a correct re-ranker on the
+same draws gives 1.00. Three tasks differ between N and a correct P,
+all in P's favor: suggestive of a filter effect, but post hoc and far
+too few tasks to test (exact Wilcoxon, n = 3: p = 0.25).
 
 **Also noted:** the `metrics` block in `results/exp003.json` is
 keyed A/B/C. `compute_metrics` hardcodes those letters and the
@@ -224,10 +238,12 @@ N/I/R arm functions are aliases that label their records A/B/C, so
 and `stats` use the correct letters.
 
 **Consequence for exp004:** a harder benchmark alone
-(`hypothesis_v4.md`) would reproduce issues 1 and 2. exp004 is
+(`hypothesis_v4.md`) would reproduce issues 1, 2 and 4. exp004 is
 re-registered in [`hypothesis_v4r1.md`](hypothesis_v4r1.md) with a
 selection-sensitive endpoint, a loop that sees its own state and
-feedback, and the calibrated benchmark.
+feedback, and the calibrated benchmark. The fixed harness is
+`forkling/experiment2.py` (`--protocol 2`). A pre-registered rerun of
+exp003 on it is [`hypothesis_v3b.md`](hypothesis_v3b.md) (exp003b).
 
 ## Reproducibility
 

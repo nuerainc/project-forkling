@@ -100,9 +100,13 @@ blind to post-hoc re-ranking by construction; and the in-loop arms
 always prompt with the original `buggy.py` while applying patches to
 the evolved source, so after the first accepted patch most later
 patches no longer apply (in-loop parse_ok falls from 0.9 at attempt 0
-to about 0.3 afterwards). The benchmark is also near ceiling (arm N
-pass@5 = 0.90). exp004 is re-registered in `paper/hypothesis_v4r1.md`
-to fix all three before any exp004 data is collected.
+to about 0.3 afterwards). exp003's post-hoc re-ranker also sorted
+candidates the wrong way and committed the worst one. The benchmark
+is also near ceiling (arm N pass@5 = 0.90). A fixed harness
+(`forkling/experiment2.py`, protocol 2) must pass a self-test with
+scripted models before use. exp003b (`paper/hypothesis_v3b.md`) reruns
+exp003 on it, and exp004 is re-registered in
+`paper/hypothesis_v4r1.md` on a harder, calibrated benchmark.
 
 ## 2. Substrate thesis (vs DGM)
 
