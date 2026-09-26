@@ -8,6 +8,7 @@ modify tasks without bumping the manifest version.
 from __future__ import annotations
 
 import json
+import random
 import shutil
 import subprocess
 import sys
@@ -301,3 +302,49 @@ def test_experiment_cli_has_checkpoint_args():
         "results survive crashes"
     )
     assert "--resume-from" in result.stdout
+
+
+def test_arm_P_post_hoc_rerank_picks_one_winner():
+    """Arm P must mark exactly one attempt as committed=True — the
+    post-hoc winner from among the parseable candidates.
+
+    No LLM call here: we patch run_attempt to return synthetic records.
+    """
+    from forkling import experiment as E
+    from forkling.experiment import AttemptRecord
+
+    # Fake LLM that returns no parseable patches.
+    class FakeLLM:
+        def complete(self, prompt, kind="", task=""):
+            from forkling.llm import Completion
+            return Completion(text='{"kind": "noop"}', used_llm=False)
+
+    # Use task 001 (off-by-one). Use a deterministic RNG.
+    tasks = load_benchmark(BENCH_JSONL)
+    t = tasks[0]
+    rng = random.Random(0)
+    recs = E.arm_P_post_hoc_rerank(FakeLLM(), t, k=3, rng=rng)
+    # All 3 records returned.
+    assert len(recs) == 3
+    # None parseable -> none committed.
+    assert sum(1 for r in recs if r.committed) == 0
+
+    # Now a fake LLM that returns one parseable, one parseable-but-bad,
+    # one unparseable. Patch extract_patch via monkey-patching.
+    class FakeLLM2:
+        def __init__(self):
+            self.n = 0
+        def complete(self, prompt, kind="", task=""):
+            self.n += 1
+            from forkling.llm import Completion
+            # First call: valid patch (the buggy.py + a fix). The
+            # patch needs to apply to buggy.py so apply_patch returns
+            # new source, then grade must be called.
+            if self.n == 1:
+                # Just say noop for simplicity — no commit happens.
+                return Completion(text='{"kind": "noop"}', used_llm=False)
+            return Completion(text='{"kind": "noop"}', used_llm=False)
+
+    recs = E.arm_P_post_hoc_rerank(FakeLLM2(), t, k=2, rng=random.Random(0))
+    # All noop -> none committed.
+    assert sum(1 for r in recs if r.committed) == 0

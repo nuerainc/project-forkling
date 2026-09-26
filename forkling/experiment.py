@@ -252,6 +252,75 @@ def arm_C_random(llm: LLM, task: BenchTask, k: int,
     return recs
 
 
+# Aliases for exp003 nomenclature (N=no-iterate, I=in-loop select,
+# R=in-loop random). exp003 also adds P=post-hoc re-rank.
+arm_N_no_iterate = arm_A_baseline          # same logic, new name
+arm_I_in_loop_select = arm_B_select        # same logic, new name
+arm_R_in_loop_random = arm_C_random       # same logic, new name
+
+
+def arm_P_post_hoc_rerank(llm: LLM, task: BenchTask, k: int,
+                           rng: random.Random) -> list[AttemptRecord]:
+    """K independent one-shot draws, then re-rank by visible-test score.
+
+    Same LLM calls as arm N/A. The only difference is *when* the
+    selector runs: arm P selects the BEST candidate from K draws
+    at the end; arm I selects PASS/FAIL on each iteration in-loop.
+
+    Pre-registration §6 (paper/hypothesis_v3.md): "For each task,
+    iterate up to K attempts. After all K draws, pick the patch
+    with the most visible tests passing. Tie-break: first one in
+    attempt order."
+
+    Returns the SAME records as arm_A_baseline, but with exactly
+    one record marked committed=True: the winner. Others are
+    committed=False (the candidate was rejected by the post-hoc
+    ranker).
+
+    To avoid re-grading patches we already graded in run_attempt,
+    we cache the (idx -> source) map and re-call grade() to count
+    visible-test passes per candidate.
+    """
+    buggy = (task.abs_path() / "buggy.py").read_text(encoding="utf-8")
+    # Run K attempts and collect parseable candidates.
+    recs: list[AttemptRecord] = []
+    candidates: list[tuple[int, str, AttemptRecord]] = []  # (idx, source, rec)
+    for i in range(k):
+        rec, src = run_attempt(llm, task, i, buggy, rng)
+        rec.arm = "P"
+        rec.committed = False  # default: rejected by post-hoc ranker
+        recs.append(rec)
+        if rec.parse_ok and not rec.note.startswith("infra:"):
+            candidates.append((i, src, rec))
+
+    # Re-grade each candidate against visible tests and score.
+    # (We already have held_out_pass but we need visible-test score,
+    # which run_attempt doesn't track. Re-grade.)
+    scored: list[tuple[float, int, str]] = []  # (-score, idx, source)
+    for idx, src, _ in candidates:
+        result = grade(task, src)
+        # Score = number of visible tests passing. Use 1.0 / 0.0 for
+        # boolean visible_pass as a tie-break.
+        visible_score = float(result.visible_pass) * 1000
+        # If we could parse pytest output for individual test
+        # counts we could be finer; visible_pass is the simple proxy.
+        scored.append((-visible_score, idx, src))
+    # Sort: lowest score first (since we negated). Actually we want
+    # HIGHEST first, so sort by -score ascending.
+    scored.sort()
+    if scored:
+        # The winner is the LAST element (highest score).
+        # Tie-break: first in attempt order means lower idx wins.
+        # Since we sorted ascending by (-score, idx), the last
+        # element has the highest score and within tie the highest
+        # idx. That's wrong — we want lowest idx in tie. Let me
+        # re-sort.
+        scored.sort(key=lambda t: (-t[0], t[1]))
+        _, winner_idx, _ = scored[0]
+        recs[winner_idx].committed = True
+    return recs
+
+
 # ----- metric computation --------------------------------------------------
 
 def pass_at_k(records: list[AttemptRecord], k: int) -> int:
@@ -386,9 +455,15 @@ def run_experiment(
     llm = LLM(url=ollama_url, model=model, timeout=timeout_s)
 
     arm_fns: dict[str, Callable] = {
+        # exp001/exp002 nomenclature
         "A": arm_A_baseline,
         "B": arm_B_select,
         "C": arm_C_random,
+        # exp003 nomenclature (aliases above + new arm P)
+        "N": arm_N_no_iterate,
+        "I": arm_I_in_loop_select,
+        "R": arm_R_in_loop_random,
+        "P": arm_P_post_hoc_rerank,
     }
     records_by_task: dict[str, list[AttemptRecord]] = {
         t.id: [] for t in tasks
@@ -461,6 +536,7 @@ def run_experiment(
                 grouped[(t.id, arm)], min(5, k_per_task))
 
     stats: dict[str, dict[str, float]] = {}
+    # exp001/exp002 comparisons: B vs A, B vs C
     if "A" in arms and "B" in arms:
         x = [float(per_task_pass[t.id]["B"]) for t in tasks]
         y = [float(per_task_pass[t.id]["A"]) for t in tasks]
@@ -471,6 +547,28 @@ def run_experiment(
         y = [float(per_task_pass[t.id]["C"]) for t in tasks]
         u, p = mann_whitney_u(x, y)
         stats["B_vs_C"] = {"u": u, "p": p}
+    # exp003 primary: I vs P (in-loop select vs post-hoc re-rank)
+    if "I" in arms and "P" in arms:
+        x = [float(per_task_pass[t.id]["I"]) for t in tasks]
+        y = [float(per_task_pass[t.id]["P"]) for t in tasks]
+        u, p = mann_whitney_u(x, y)
+        stats["I_vs_P"] = {"u": u, "p": p}
+    # exp003 secondaries: I vs N, I vs R, P vs N
+    if "I" in arms and "N" in arms:
+        x = [float(per_task_pass[t.id]["I"]) for t in tasks]
+        y = [float(per_task_pass[t.id]["N"]) for t in tasks]
+        u, p = mann_whitney_u(x, y)
+        stats["I_vs_N"] = {"u": u, "p": p}
+    if "I" in arms and "R" in arms:
+        x = [float(per_task_pass[t.id]["I"]) for t in tasks]
+        y = [float(per_task_pass[t.id]["R"]) for t in tasks]
+        u, p = mann_whitney_u(x, y)
+        stats["I_vs_R"] = {"u": u, "p": p}
+    if "P" in arms and "N" in arms:
+        x = [float(per_task_pass[t.id]["P"]) for t in tasks]
+        y = [float(per_task_pass[t.id]["N"]) for t in tasks]
+        u, p = mann_whitney_u(x, y)
+        stats["P_vs_N"] = {"u": u, "p": p}
 
     arms_data: dict[str, list[AttemptRecord]] = {
         arm: [r for (tid, a), recs in grouped.items()
