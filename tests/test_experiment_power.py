@@ -14,6 +14,7 @@ at the end uses the real grader on FORKLAND-BENCH-001.
 from __future__ import annotations
 
 import json
+import os
 import random
 import re
 import subprocess
@@ -217,7 +218,7 @@ def test_stable_seed_is_the_same_across_processes():
             "print(stable_seed('coin', 1, 'I', '001', 0))")
     outs = {
         subprocess.run([sys.executable, "-c", code], cwd=REPO, text=True,
-                       capture_output=True, env={"PYTHONHASHSEED": h},
+                       capture_output=True, env={**os.environ, "PYTHONHASHSEED": h},
                        check=True).stdout.strip()
         for h in ("1", "2", "3")
     }
