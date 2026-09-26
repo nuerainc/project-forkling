@@ -12,6 +12,8 @@ import json
 import time
 from pathlib import Path
 
+import pytest
+
 from forkling.config import Config
 from forkling.desktop import (
     GREEN_MAX, YELLOW_MAX, _format_age, _status_color, collect_status,
@@ -146,7 +148,7 @@ def test_desktop_cli_runs_in_sovereign_mode(tmp_path, monkeypatch):
     monkeypatch.setenv("FORKLING_MEMORY", str(tmp_path / "mem"))
 
     # Import inside the test so the module loads first.
-    import tkinter as tk
+    tk = pytest.importorskip("tkinter")
 
     class _BoomTcl(tk.TclError):
         pass
@@ -165,3 +167,13 @@ def test_desktop_cli_runs_in_sovereign_mode(tmp_path, monkeypatch):
     rc = main(["desktop", "--repo", str(tmp_path)])
     # 0 = graceful "no display" exit. Anything else is a crash.
     assert rc == 0
+
+def test_desktop_cli_without_tkinter(tmp_path, monkeypatch):
+    """Python builds without Tk (headless Linux, Pi images) must still
+    import forkling.desktop and exit 0 from `forkling desktop`."""
+    monkeypatch.setenv("FORKLING_MEMORY", str(tmp_path / "mem"))
+    import forkling.desktop as d
+    monkeypatch.setattr(d, "tk", None)
+
+    from forkling.__main__ import main
+    assert main(["desktop", "--repo", str(tmp_path)]) == 0

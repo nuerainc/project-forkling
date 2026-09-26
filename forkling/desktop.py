@@ -29,9 +29,13 @@ import shutil
 import subprocess
 import sys
 import time
-import tkinter as tk
 from pathlib import Path
-from tkinter import messagebox, scrolledtext, ttk
+
+try:
+    import tkinter as tk
+    from tkinter import messagebox, scrolledtext, ttk
+except ImportError:  # Python built without Tk (headless Linux, Pi images)
+    tk = messagebox = scrolledtext = ttk = None
 
 from .capability import CapabilityLedger
 from .clock import Clock
@@ -161,6 +165,10 @@ def collect_status(cfg: Config, repo: Path) -> dict:
 
 def launch(cfg: Config, repo: Path, refresh_seconds: int = 15) -> int:
     """Launch the desktop UI. Returns 0 on graceful exit, 1 on error."""
+    if tk is None:
+        print("forkling desktop: tkinter is not installed in this Python.")
+        print("On a headless server, run `forkling doctor` and `forkling fitness` instead.")
+        return 0
     try:
         root = tk.Tk()
     except tk.TclError as e:
