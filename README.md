@@ -96,7 +96,7 @@ python -m forkling experiment run \
     --out results/exp003.json
 
 # Summarize any results/exp*.json.
-python summarize.py results/exp003.json
+python scripts/summarize.py results/exp003.json
 ```
 
 The `--checkpoint` flag flushes every (task, arm) pair to a JSONL
@@ -138,7 +138,7 @@ The point of this framing isn't metaphor — it's that the system behaves like a
 
 ```bash
 git clone https://github.com/nuerainc/project-forkling.git
-cd forkling
+cd project-forkling
 pip install pytest                # dev dep; runtime is stdlib only
 
 # (optional) start a local Ollama daemon — not required

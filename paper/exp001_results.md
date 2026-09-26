@@ -154,7 +154,7 @@ python -m forkling experiment run \
     --bench bench/FORKLAND-BENCH-001.jsonl \
     --k 10 --model llama3.2:3b --seed 20260925 \
     --out results/exp001.json
-python summarize_exp001.py
+python scripts/summarize.py results/exp001.json
 ```
 
 The result JSON contains per-attempt records (raw LLM response,

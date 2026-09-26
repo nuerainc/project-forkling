@@ -174,7 +174,7 @@ python -m forkling experiment run \
     --k 10 --model qwen2.5-coder:3b --seed 20261025 \
     --checkpoint results/exp002.ckpt.jsonl \
     --out results/exp002.json
-python summarize.py results/exp002.json
+python scripts/summarize.py results/exp002.json
 ```
 
 ---

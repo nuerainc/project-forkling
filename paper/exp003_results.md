@@ -164,7 +164,7 @@ python -m forkling experiment run \
     --arms N,P,I,R \
     --checkpoint results/exp003.ckpt.jsonl \
     --out results/exp003.json
-python summarize3.py   # see results/exp003.json
+python scripts/summarize.py results/exp003.json
 ```
 
 ---
