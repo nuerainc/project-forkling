@@ -1,5 +1,9 @@
 """Summarize any results/exp*.json produced by `forkling experiment run`.
 
+Protocol-2 files (exp003b onward; ``config.protocol == 2``) already carry
+per-task returned-pass rates and paired statistics; those are printed
+as recorded. The rest of this docstring is about protocol-1 files.
+
 Usage:
     python scripts/summarize.py results/exp003.json
 
@@ -41,10 +45,38 @@ def returned_pass(arm: str, recs: list[dict]) -> int:
     return int(bool(recs) and recs[0]["held_out_pass"])
 
 
+def summarize_protocol2(path: Path, d: dict) -> int:
+    cfg = d["config"]
+    arms = cfg["arms"]
+    per_task = d["per_task_returned_pass"]
+    print(f"=== {path.name} (protocol 2) ===")
+    print(f"model: {cfg['model']}  k: {cfg['k_per_task']}  replicates: "
+          f"{cfg['replicates']}  temperature: {cfg['temperature']}  "
+          f"seed: {cfg['seed']}  harness: {cfg.get('harness_commit', '?')[:7]}")
+    print("\n=== per-task returned-patch pass rate ===")
+    print(f"{'task':>6} " + " ".join(f"{a:>5}" for a in arms))
+    for tid in sorted(per_task):
+        print(f"{tid:>6} " + " ".join(f"{per_task[tid][a]:>5.2f}" for a in arms))
+    print("\n=== per-arm metrics ===")
+    for arm, m in d["metrics"].items():
+        print(f"  arm {arm}: returned={m['returned_pass']:.2f} "
+              f"pass@1={m['pass_at_1']:.2f} pass@5={m['pass_at_5']:.2f} "
+              f"parse_ok={m['parse_ok_rate']:.2f} kept={m['kept_rate']:.2f} "
+              f"infra={m['infra_rate']:.2f} calls={m['mean_calls']:.1f}")
+    print("\n=== paired Wilcoxon signed-rank over tasks (first = primary) ===")
+    for name, st in d["stats"].items():
+        print(f"  {name}: mean_diff={st['mean_diff']:+.3f} "
+              f"CI95=[{st['ci95'][0]:+.3f}, {st['ci95'][1]:+.3f}] "
+              f"W+={st['w_plus']:.1f} n={st['n']} p={st['p']:.4f}")
+    return 0
+
+
 def main(argv: list[str]) -> int:
     path = Path(argv[1] if len(argv) > 1 else "results/exp003.json")
     d = json.loads(path.read_text(encoding="utf-8"))
     cfg = d.get("config", {})
+    if cfg.get("protocol") == 2:
+        return summarize_protocol2(path, d)
     arms = list(d["records"])
 
     by_task: dict[str, dict[str, list[dict]]] = {}
