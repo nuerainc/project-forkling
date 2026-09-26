@@ -10,7 +10,7 @@ readme = "README.md"
 requires-python = ">=3.9"
 license = { text = "MIT" }
 authors = [{ name = "Dogfood Contributors" }]
-keywords = ["agent", "self-improving", "dogfooding", "local-llm", "ollama"]
+keywords = ["agent", "self-improving", "forkling", "local-llm", "ollama"]
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Intended Audience :: Developers",
@@ -30,7 +30,6 @@ dev = ["pytest>=7"]
 
 [project.scripts]
 forkling = "forkling.__main__:main"
-dogfood = "forkling.__main__:main"
 pup = "forkling.__main__:main"
 
 [tool.setuptools.packages.find]

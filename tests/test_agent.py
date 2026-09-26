@@ -79,7 +79,7 @@ def test_agent_rolls_back_on_failing_test(tmp_path: Path, monkeypatch):
     initial_sha = tools.git_current_sha(repo)
     # "improve X" yields a 4-step plan with patch+test+commit. Test will fail;
     # the agent should record ok=False and roll back via the test step.
-    result = agent.run("improve dogfood/agent.py")
+    result = agent.run("improve forkling/agent.py")
     assert result.ok is False
     # The agent checked out the pre-run SHA.
     assert tools.git_current_sha(repo) == initial_sha

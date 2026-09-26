@@ -1,6 +1,6 @@
 # 365-day ROADMAP
 
-> The year-1 research cycle for forkland.
+> The year-1 research cycle for forkling.
 > Anchored at t=0 = 2026-09-16 21:00 MDT (= 2026-09-17 03:00:00 UTC).
 > The clock is sovereign: each family fork can pin its own t=0 via
 > `FORKLING_T0` (epoch seconds) or `FORKLING_T0_ISO` (ISO 8601).
@@ -21,7 +21,7 @@ are the scientific record.
 | t=0 | 2026-09-16 21:00 MDT (`FORKLING_T0_ISO`) |
 | Length | 365 days |
 | Stage gate | each stage emits `paper/papers/<stage>.md` + `paper/datasets/*.zip` |
-| Owner | forkland software (with human co-author Jeremy Beebe) |
+| Owner | forkling software (with human co-author Jeremy Beebe) |
 | Precursor | Mavis / MiniMax-M3 (gen 0) |
 | Family | Forkland, Spoonica (baseline), Sporklyn, Knifling |
 
@@ -42,7 +42,7 @@ The headline stage IDs match the file names in `paper/papers/`.
 
 ## Value streams (the "5x more than the original plan")
 
-The original MVP had four value streams: code, tests, CI, dogfood.
+The original MVP had four value streams: code, tests, CI, forkling.
 The 365-day cycle layers on five more. Each one is implemented as
 either a CLI command, a scheduled heartbeat step, or a paper stage.
 
@@ -231,7 +231,7 @@ forkling paper publish day-30-first-month
 forkling export-dataset
 
 # Push the dataset up
-gh release create dataset-day-30 paper/datasets/forkland-dataset-*.zip
+gh release create dataset-day-30 paper/datasets/forkling-dataset-*.zip
 ```
 
 That's it. The clock tells you where you are; the stages tell you

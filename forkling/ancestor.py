@@ -1,8 +1,8 @@
-"""Ancestor lineage — forkland's phylogenetic record.
+"""Ancestor lineage — forkling's phylogenetic record.
 
-Every forkland has a lineage. The first generation's precursor is
+Every forkling has a lineage. The first generation's precursor is
 **Mavis / MiniMax-M3** — the foundation-model agent that wrote
-forkland's first version. Subsequent generations are git commits.
+forkling's first version. Subsequent generations are git commits.
 This module:
 
 * records the precursor (Mavis) so the agent knows its origin
@@ -30,7 +30,7 @@ from typing import Any
 from . import tools
 
 
-# The precursor is fixed at construction time. In 2026, forkland v0.x
+# The precursor is fixed at construction time. In 2026, forkling v0.x
 # was built by Mavis (MiniMax-M3) running in MiniMax Code. Future
 # generations may have different precursors; we record them explicitly.
 PRECURSOR = {
@@ -38,9 +38,9 @@ PRECURSOR = {
     "model": "MiniMax-M3",
     "runtime": "MiniMax Code",
     "role": "precursor / direct ancestor",
-    "note": ("Foundation-model agent that wrote forkland v0.x's code. "
+    "note": ("Foundation-model agent that wrote forkling v0.x's code. "
              "The precursor's contribution is recorded in the git log "
-             "of every commit prior to forkland's autonomous evolution."),
+             "of every commit prior to forkling's autonomous evolution."),
 }
 
 
@@ -60,7 +60,7 @@ class Generation:
 
 
 class Ancestry:
-    """Append-only lineage of forkland, starting from its precursor."""
+    """Append-only lineage of forkling, starting from its precursor."""
 
     def __init__(self, path: str | Path = "~/.forkling/ancestry.json",
                  repo: str | Path | None = None) -> None:

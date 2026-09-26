@@ -41,9 +41,9 @@ def test_rule_based_list_dir():
 
 def test_rule_based_read():
     p = Planner(_FakeLLM())
-    steps = p.plan("read dogfood/agent.py")
+    steps = p.plan("read forkling/agent.py")
     assert steps[0].action == "read"
-    assert steps[0].args["path"] == "dogfood/agent.py"
+    assert steps[0].args["path"] == "forkling/agent.py"
 
 
 def test_rule_based_unknown_falls_back_to_shell_echo():

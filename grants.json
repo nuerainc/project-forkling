@@ -140,7 +140,7 @@
     "stages": ["early", "growth"],
     "focus": ["AI safety", "alignment", "interpretability"],
     "open_source": true,
-    "notes": "Strong fit: forkland's append-only ledger + auto-rollback + inception interruptive triggers map onto agent-safety concerns. Submit as a 'small grant' inquiry first."
+    "notes": "Strong fit: forkling's append-only ledger + auto-rollback + inception interruptive triggers map onto agent-safety concerns. Submit as a 'small grant' inquiry first."
   },
   {
     "name": "Future of Life Institute grants",
@@ -192,7 +192,7 @@
     "stages": ["growth"],
     "focus": ["open source", "biomedical", "research infrastructure"],
     "open_source": true,
-    "notes": "Stretch: need a biomedical angle. Possible story is reproducibility of AI-driven analyses, where forkland's audit trail + auto-rollback apply."
+    "notes": "Stretch: need a biomedical angle. Possible story is reproducibility of AI-driven analyses, where forkling's audit trail + auto-rollback apply."
   },
   {
     "name": "Schmidt Futures AI2050",
@@ -218,7 +218,7 @@
     "stages": ["early", "growth"],
     "focus": ["open source", "datasets", "community"],
     "open_source": true,
-    "notes": "The forkland year-1 dataset fits naturally. Apply once we have a publishable HF dataset."
+    "notes": "The forkling year-1 dataset fits naturally. Apply once we have a publishable HF dataset."
   },
   {
     "name": "Mozilla Responsible CS Challenge",
@@ -244,7 +244,7 @@
     "stages": ["growth"],
     "focus": ["AI evals", "alignment", "interpretability"],
     "open_source": true,
-    "notes": "Stretch: forkland's audit trail + inception triggers are exactly the kind of instrumentation ARC wants. Apply with the mid-year dataset."
+    "notes": "Stretch: forkling's audit trail + inception triggers are exactly the kind of instrumentation ARC wants. Apply with the mid-year dataset."
   },
   {
     "name": "AIcrowd Best Paper Awards",
@@ -309,7 +309,7 @@
     "stages": ["growth"],
     "focus": ["AI research", "evaluation"],
     "open_source": true,
-    "notes": "Stretch: we run on Ollama, not OpenAI, so this is a fit only for the *eval* angle — measuring how forkland behaves under different model families. Apply if we add an OpenAI-compatible eval harness."
+    "notes": "Stretch: we run on Ollama, not OpenAI, so this is a fit only for the *eval* angle — measuring how forkling behaves under different model families. Apply if we add an OpenAI-compatible eval harness."
   },
   {
     "name": "AI Singapore 100 Experiments",

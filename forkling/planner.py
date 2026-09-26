@@ -31,7 +31,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
-SYSTEM_PROMPT = """You are the planner of dogfood, a self-contained coding agent.
+SYSTEM_PROMPT = """You are the planner of forkling, a self-contained coding agent.
 Given a task, output ONLY valid JSON matching this schema:
 {"steps": [{"action": str, "args": object, "description": str}]}
 
@@ -160,15 +160,15 @@ class Planner:
         if re.search(r"\b(improve|refactor|tidy|clean|format|polish)\b", low):
             return [
                 step("list", {"path": "forkling"}, "List the agent package"),
-                step("read", {"path": "dogfood/agent.py"}, "Read agent source"),
+                step("read", {"path": "forkling/agent.py"}, "Read agent source"),
                 step("test", {}, "Baseline: run tests"),
                 step("patch", {
-                    "path": "dogfood/agent.py",
+                    "path": "forkling/agent.py",
                     "old": "__TODO_SELF_IMPROVEMENT_PATCH__",
-                    "new": "# improved by dogfood\n",
+                    "new": "# improved by forkling\n",
                 }, "Apply self-improvement patch"),
                 step("test", {}, "Verify tests still pass"),
-                step("commit", {"message": "dogfood: self-improve"}, "Commit if green"),
+                step("commit", {"message": "forkling: self-improve"}, "Commit if green"),
             ]
 
         # generic "fix / add / change / modify / edit / update"
@@ -180,14 +180,14 @@ class Planner:
                 step("patch", {
                     "path": target,
                     "old": "__TODO_GENERIC_PATCH__",
-                    "new": f"# dogfood: handled '{t[:60]}'\n",
+                    "new": f"# forkling: handled '{t[:60]}'\n",
                 }, f"Edit {target}"),
                 step("test", {}, "Run tests"),
-                step("commit", {"message": f"dogfood: {t[:60]}"}, "Commit"),
+                step("commit", {"message": f"forkling: {t[:60]}"}, "Commit"),
             ]
 
         # shell fallback: shell out
-        return [step("shell", {"argv": ["echo", f"dogfood: unknown task -> {t[:80]}"]},
+        return [step("shell", {"argv": ["echo", f"forkling: unknown task -> {t[:80]}"]},
                      "Echo unknown task")]
 
     @staticmethod
@@ -204,8 +204,8 @@ def _docstring_plan(path: str) -> list[Step]:
         Step(0, "patch", {
             "path": path,
             "old": "__TODO_DOCSTRING_PATCH__",
-            "new": '"""Documented by dogfood."""\n',
+            "new": '"""Documented by forkling."""\n',
         }, "Insert docstring"),
         Step(0, "test", {}, "Run tests"),
-        Step(0, "commit", {"message": f"dogfood: add docstring to {path}"}, "Commit"),
+        Step(0, "commit", {"message": f"forkling: add docstring to {path}"}, "Commit"),
     ]

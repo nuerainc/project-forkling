@@ -1,6 +1,6 @@
 """Tiny persistent memory.
 
-A single JSON file under ``~/.dogfood/memory.json``. Stores three things:
+A single JSON file under ``~/.forkling/memory.json``. Stores three things:
 
 * ``kv``     — arbitrary key/value pairs the agent has learned
 * ``log``    — append-only event log (one line per event, capped)
@@ -22,7 +22,7 @@ class Memory:
     MAX_LOG = 500
     MAX_RUNS = 50
 
-    def __init__(self, dir_path: str | os.PathLike = "~/.dogfood") -> None:
+    def __init__(self, dir_path: str | os.PathLike = "~/.forkling") -> None:
         self.dir = Path(os.path.expanduser(str(dir_path))).resolve()
         self.dir.mkdir(parents=True, exist_ok=True)
         self.path = self.dir / "memory.json"

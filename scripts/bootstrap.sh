@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# bootstrap.sh — install dogfood on any device with python + git.
+# bootstrap.sh — install forkling on any device with python + git.
 #
 # Usage:
 #   curl -fsSL <raw-url>/scripts/bootstrap.sh | bash
@@ -10,13 +10,13 @@
 #   1. Verifies python >= 3.9 and git are present
 #   2. Optionally installs Ollama if it isn't already there
 #   3. Installs the package in editable mode (no deps — stdlib only)
-#   4. Runs `python -m dogfood doctor` so you can see the runtime state
+#   4. Runs `python -m forkling doctor` so you can see the runtime state
 
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-echo "→ dogfood bootstrap"
+echo "→ forkling bootstrap"
 
 if ! command -v python >/dev/null 2>&1; then
   echo "✗ python not found on PATH. Install python 3.9+ first." >&2
@@ -51,8 +51,8 @@ fi
 
 echo
 echo "→ doctor:"
-"$PY" -m dogfood doctor
+"$PY" -m forkling doctor
 echo
-echo "✅ dogfood ready. Try:"
-echo "   $PY -m dogfood plan \"list dogfood\""
-echo "   $PY -m dogfood self-improve"
+echo "✅ forkling ready. Try:"
+echo "   $PY -m forkling plan \"list forkling\""
+echo "   $PY -m forkling self-improve"

@@ -375,7 +375,7 @@ class SelfImprover:
 
         # Ship.
         skill_name = Path(path).stem
-        msg = f"dogfood: new skill {skill_name}"
+        msg = f"forkling: new skill {skill_name}"
         commit = tools.git_commit(msg, cwd=root)
         after_sha = _safe_sha(root)
         tag = tools.git_tag(f"skill-{skill_name}-{after_sha[:7]}", cwd=root)
@@ -526,7 +526,7 @@ class SelfImprover:
             )
 
         # Ship.
-        msg = f"dogfood: self-improve {Path(patch_path).name}"
+        msg = f"forkling: self-improve {Path(patch_path).name}"
         commit = tools.git_commit(msg, cwd=root)
         after_sha = _safe_sha(root)
         tag = tools.git_tag(f"self-{after_sha[:7]}", cwd=root)

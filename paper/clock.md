@@ -1,5 +1,5 @@
 {
-  "fork_name": "forkland",
+  "fork_name": "forkling",
   "t0_epoch": 1789614000.0,
   "t0_iso": "2026-09-17T03:00:00+00:00",
   "now_epoch": 1790405482.105007,

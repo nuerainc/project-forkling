@@ -21,8 +21,8 @@ from forkling.trace import Trace
 
 def test_clock_defaults_match_year_anchor():
     """The default t=0 anchor is 2026-09-16 21:00 MDT (= 2026-09-17 03:00 UTC)."""
-    c = Clock.from_env(fork_name="forkland")
-    assert c.fork_name == "forkland"
+    c = Clock.from_env(fork_name="forkling")
+    assert c.fork_name == "forkling"
     assert c.t0_epoch > 0
     # Anchor year should be 2026
     import datetime as _dt
@@ -88,7 +88,7 @@ def test_clock_save_and_load(tmp_path):
 def test_clock_as_dict_has_stage():
     c = Clock.from_env()
     d = c.as_dict()
-    assert d["fork_name"] == "forkland"
+    assert d["fork_name"] == "forkling"
     assert "stage" in d
     assert "cycle_progress" in d
     assert "day_index" in d
@@ -264,7 +264,7 @@ def test_export_dataset_writes_zip(tmp_path, monkeypatch):
     rc = main(["export-dataset"])
     assert rc == 0
     out = repo / "paper" / "datasets"
-    zips = list(out.glob("forkland-dataset-*.zip"))
+    zips = list(out.glob("forkling-dataset-*.zip"))
     assert len(zips) == 1
     # Confirm the zip is a real archive and contains README + manifest.
     import zipfile

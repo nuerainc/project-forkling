@@ -1,6 +1,6 @@
-name: dogfood
+name: forkling
 
-# The agent dogfoods itself on every push.
+# The agent forklings itself on every push.
 # Three gates: a `run` smoke test, the full pytest suite, then a real
 # self-improve attempt gated by tests.
 
@@ -44,12 +44,12 @@ jobs:
       - name: Doctor
         run: python -m forkling doctor
       - name: Plan a one-shot task
-        run: python -m forkling plan "list dogfood"
+        run: python -m forkling plan "list forkling"
       - name: Verify the capability ledger is intact
         run: python -m forkling verify
 
-  dogfood:
-    name: dogfood self-improve
+  forkling:
+    name: forkling self-improve
     needs: [test, run-smoke]
     runs-on: ubuntu-latest
     steps:
@@ -63,14 +63,14 @@ jobs:
         run: |
           python -m pip install -e .
           python -m pip install pytest
-      - name: dogfood self-improve
+      - name: forkling self-improve
         env:
           DOGFOOD_REPO: ${{ github.workspace }}
           # No Ollama in CI by default; rule-based fallback still runs the
           # full ship/rollback loop. Set DOGFOOD_OLLAMA_URL to enable.
           DOGFOOD_OLLAMA_URL: "http://127.0.0.1:1"
         run: python scripts/self_improve.py
-      - name: Push the dogfood commit (if any)
+      - name: Push the forkling commit (if any)
         run: git push origin HEAD:main
         # The script only commits when tests pass; if it didn't commit, this
         # is a no-op push.

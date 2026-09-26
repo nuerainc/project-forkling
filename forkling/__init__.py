@@ -1,4 +1,4 @@
-"""dogfood — the absolute MVP of a self-contained, self-improving AI agent.
+"""forkling — the absolute MVP of a self-contained, self-improving AI agent.
 
 Public surface:
     Agent         — the Plan→Act→Reflect loop

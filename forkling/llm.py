@@ -196,4 +196,4 @@ class LLM:
             "steps": [],
             "note": "rule-based fallback: planner will use heuristic",
         })
-# dogfood: reviewed
+# forkling: reviewed

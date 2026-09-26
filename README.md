@@ -25,7 +25,7 @@
 [**How it works**](#how-it-works) ·
 [**Architecture**](#architecture) ·
 [**Clock & stages**](#clock--stages) ·
-[**Family**](#forkland--family) ·
+[**Family**](#forkling--family) ·
 [**Paper**](#paper) ·
 [**Authorship**](#authorship--license) ·
 [**Current research**](#current-research)
@@ -311,7 +311,7 @@ The project has its own clock. **t=0** is `2026-09-16 21:00:00 MDT` — the mome
 | **6 — Paper chase** | day 270 → day 365 | Stage-gated publications per `paper/papers/`; year-1 wrap |
 | **7 — Hand-off** | day 365+ | Project resets; first generation of the next cycle seeded from day-365 best |
 
-Each stage has its own dataset (`paper/datasets/forkland-dataset-<ts>-stage-<n>-<name>.zip`) and its own frozen paper (`paper/papers/<n>-<day>-<stage>.md`). Datasets and papers are append-only — the year-1 prospectus is frozen on day 0 and never edited.
+Each stage has its own dataset (`paper/datasets/forkling-dataset-<ts>-stage-<n>-<name>.zip`) and its own frozen paper (`paper/papers/<n>-<day>-<stage>.md`). Datasets and papers are append-only — the year-1 prospectus is frozen on day 0 and never edited.
 
 The clock isn't wall-clock-only — it ticks on agent actions too. Every `commit` advances the local generation counter; the *project* clock keeps wall time regardless.
 
@@ -362,7 +362,7 @@ forkling/
 
 docs/                 # AUTONOMY · DATA_REPORT · DEPLOYMENT · MODELS · ROADMAP · SANDBOX
 paper/                # paper.md (auto-regen) · papers/000-day-0-prospectus.md
-                      # datasets/forkland-dataset-<ts>-stage-<n>-<name>.zip
+                      # datasets/forkling-dataset-<ts>-stage-<n>-<name>.zip
 proposals/            # NumFOCUS · Mozilla MOSS drafts
 inception_triggers/   # staged + active triggers (deferred for first 24–72 h)
 tests/                # 174 tests (22 files)

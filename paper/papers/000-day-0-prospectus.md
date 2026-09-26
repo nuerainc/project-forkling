@@ -7,7 +7,7 @@
 > species, of which Forkling is the founding member.
 
 > **Status:** frozen at t=0 = 2026-09-16 21:00 MDT.
-> **Author of record:** Jeremy Beebe (human) + forkland software.
+> **Author of record:** Jeremy Beebe (human) + forkling software.
 > **License:** MIT.
 > **Stage gate:** this paper is the prospectus. Subsequent stage papers
 > (`001-day-30-first-month.md`, `002-day-60-spoonica-arrives.md`, …) are
@@ -18,7 +18,7 @@
 The Darwin Gödel Machine (DGM) is the current high-water mark for
 self-improving AI agents: it edits its own source code at inference
 time, scores the edits with a benchmark-derived fitness function, and
-keeps the best. **forkland** takes a different bet. It treats the git
+keeps the best. **forkling** takes a different bet. It treats the git
 history of its own repository — not the agent's in-memory state — as
 the evolutionary substrate. Every patch is `git commit`-able, every
 selection event is a `pytest` run, every rollback is a `git checkout`,
@@ -29,7 +29,7 @@ evolutionary history **trivially auditable**, **trivially replayable**,
 and **trivially sharable**, with no hidden in-memory lineage and no
 special-purpose substrate to maintain.
 
-We announce a **365-day research cycle** for forkland that begins at
+We announce a **365-day research cycle** for forkling that begins at
 2026-09-16 21:00 MDT and ends at 2026-09-16 21:00 MDT, 2027. Across
 eight named stages we will:
 
@@ -88,7 +88,7 @@ event.
 ## 2. Related Work
 
 The git-as-substrate thesis sits at the intersection of three
-literatures. We position forkland against each.
+literatures. We position forkling against each.
 
 ### 2.1 Darwin Gödel Machine and self-modifying agents
 
@@ -97,7 +97,7 @@ nearest published neighbor. DGM edits the agent's own Python source
 at inference time, evaluates candidate edits against a benchmark
 (SWE-bench), and keeps the best. Forkland differs on three axes:
 
-| Axis | DGM | forkland |
+| Axis | DGM | forkling |
 |---|---|---|
 | Substrate | in-memory source edits | git history (the working tree) |
 | Selection | benchmark score | `pytest -q` (fitness gate on the actual code) |
@@ -105,12 +105,12 @@ at inference time, evaluates candidate edits against a benchmark
 | Parallelism | single agent, in-memory tree | `git branch` per experiment |
 | Replay | must reconstruct the edit DAG | `git checkout <sha>` + run |
 
-The distinction matters because selection in forkland is **the
+The distinction matters because selection in forkling is **the
 agent's own test suite**, not a benchmark. The agent has direct
 incentive to make its own tests pass — and direct disincentive to
 "game" the benchmark. That closes a known DGM failure mode where
 edits that improve the score but degrade general capability persist
-in the lineage. In forkland, such an edit would fail the agent's own
+in the lineage. In forkling, such an edit would fail the agent's own
 regression tests and be rolled back.
 
 **Gödel machines** [Schmidhuber, 2003] are the formal ancestor: a
@@ -132,7 +132,7 @@ is a hand-crafted combination of capability-ledger coverage,
 graveyard penalty, and Shannon-entropy file diversity.
 
 Where classical GP tracks lineages in bespoke data structures (e.g.
-tangled graphs in `DEAP`), forkland's lineage is **the git log**. We
+tangled graphs in `DEAP`), forkling's lineage is **the git log**. We
 get phylogenetic replay, ancestor-of comparison, and diff-replay for
 free. The cost is that our variation operator is text-edit-shaped
 rather than tree-shaped, which limits what kinds of mutations are
@@ -149,7 +149,7 @@ selection. Forkland shares the variation story (LLM proposes an
 edit) but differs on selection: rather than scoring against an
 external benchmark, it scores against its own running test suite.
 This makes the agent's evolution **task-relative** (good at being
-forkland) rather than **benchmark-relative** (good at SWE-bench).
+forkling) rather than **benchmark-relative** (good at SWE-bench).
 
 The "scaffolding evolution" literature also evolves *prompts* rather
 than *code*. Forkland edits code; prompts are inputs to the LLM
@@ -179,7 +179,7 @@ result, with no special tooling.
 
 We are not claiming:
 
-- That forkland is a frontier agent (it is small, slow, runs on one
+- That forkling is a frontier agent (it is small, slow, runs on one
   qwen3:4b model on one machine — that is the point).
 - That git is the *only* possible substrate (DGM's in-memory
   approach has complementary strengths).
@@ -193,7 +193,7 @@ git, the substrate is git.**
 
 ## 2. Starting state (t=0)
 
-At the moment this paper freezes, forkland has:
+At the moment this paper freezes, forkling has:
 
 - **8 git generations** (1 precursor + 7 commits): see `LINEAGE.md`.
 - **88 passing tests** (`pytest -q`).
@@ -268,7 +268,7 @@ shared rewards shape behavior.
 
 The 7-day isolation rollout (Forkland alone) is the cleanest possible
 control: at day 7 we have a baseline of Forkland-without-family;
-after day 30 we have a forkland-with-family comparison. The
+after day 30 we have a forkling-with-family comparison. The
 isolation period is not empty time — it is itself a dataset.
 
 ## 5. Inception triggers
@@ -319,7 +319,7 @@ exports are at every stage gate.
 
 We are explicitly **not** claiming:
 
-- That forkland is a frontier agent. It is small, slow, runs on a
+- That forkling is a frontier agent. It is small, slow, runs on a
   single qwen3:4b model on a single machine. That's the point.
 - That the agent will autonomously produce AGI. It will produce code,
   tests, papers, datasets, and (we hope) some grant funding. The
@@ -367,7 +367,7 @@ The clock starts now. The next paper in this series is
 
 | Stage | File | Status |
 |---|---|---|
-| 0 | `paper/datasets/forkland-dataset-<ts>-stage-0-isolation.zip` | being shipped |
+| 0 | `paper/datasets/forkling-dataset-<ts>-stage-0-isolation.zip` | being shipped |
 | 1 | … | pending |
 | 2 | … | pending |
 | 3 | … | pending |

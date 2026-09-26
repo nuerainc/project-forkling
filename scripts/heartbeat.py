@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""forkland heartbeat — one autonomous beat.
+"""forkling heartbeat — one autonomous beat.
 
 Runs the agent's three maintenance beats:
 
@@ -38,7 +38,7 @@ def main() -> int:
     p.add_argument("--skip-improve", action="store_true",
                    help="Skip the self-improve step (useful for tests).")
     p.add_argument("--memory-dir", default=None,
-                   help="forkland memory dir (default ~/.forkling).")
+                   help="forkling memory dir (default ~/.forkling).")
     args = p.parse_args()
 
     repo = Path(args.repo).resolve() if args.repo else Path.cwd().resolve()

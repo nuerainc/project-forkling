@@ -190,7 +190,7 @@ class Agent:
                 raise tools.ToolError(f"tests failed:\n{snippet}")
             return f"exit={res.returncode}\n{snippet}"
         if a == "commit":
-            res = tools.git_commit(str(args.get("message", "dogfood: change")), cwd=self.root)
+            res = tools.git_commit(str(args.get("message", "forkling: change")), cwd=self.root)
             if not res.ok:
                 raise tools.ToolError(f"commit failed: {res.stderr or res.stdout}")
             return res.stdout.strip() or "committed"

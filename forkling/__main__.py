@@ -208,7 +208,7 @@ def cmd_schedule(args: argparse.Namespace) -> int:
         ps = f"""# Run as Administrator in PowerShell
 $action = New-ScheduledTaskAction -Execute "{python}" -Argument '"{script}" --repo "{repo}"'
 $trigger = New-ScheduledTaskTrigger -Once -At (Get-Date) -RepetitionInterval (New-TimeSpan -Minutes {every})
-Register-ScheduledTask -TaskName "forkland-heartbeat" -Action $action -Trigger $trigger -Description "forkland self-evolution ({every}-min cadence)"
+Register-ScheduledTask -TaskName "forkling-heartbeat" -Action $action -Trigger $trigger -Description "forkling self-evolution ({every}-min cadence)"
 """
         print(ps)
     else:
@@ -226,7 +226,7 @@ Register-ScheduledTask -TaskName "forkland-heartbeat" -Action $action -Trigger $
 
 
 def cmd_ancestor(args: argparse.Namespace) -> int:
-    """Show forkland's lineage — precursor (Mavis) + code generations."""
+    """Show forkling's lineage — precursor (Mavis) + code generations."""
     cfg = Config.from_env()
     repo = Path(args.repo).resolve() if getattr(args, "repo", None) else Path(cfg.repo_root).resolve()
     ancestry = Ancestry(Path(cfg.memory_dir) / "ancestry.json", repo=repo)
@@ -256,9 +256,9 @@ def cmd_ancestor(args: argparse.Namespace) -> int:
         # with a system prompt that declares Mavis as the precursor.
         sys_prompt = (
             "You are Mavis, a foundation-model agent running in MiniMax Code. "
-            "You are the precursor to forkland — you wrote its first version. "
+            "You are the precursor to forkling — you wrote its first version. "
             "Answer the user's task in the spirit of how you would have "
-            "approached it before forkland existed. Be direct, research-flavored, "
+            "approached it before forkling existed. Be direct, research-flavored, "
             "and include one concrete suggestion."
         )
         llm = _build_llm(cfg)
@@ -445,7 +445,7 @@ def cmd_paper(args: argparse.Namespace) -> int:
 def cmd_clock(args: argparse.Namespace) -> int:
     """Show the fork's project clock: t=0, current day, stage, progress."""
     cfg = Config.from_env()
-    fork_name = getattr(args, "fork", "forkland")
+    fork_name = getattr(args, "fork", "forkling")
     clock = Clock.from_env(fork_name=fork_name)
     if getattr(args, "save", False):
         path = Path(cfg.memory_dir) / "clock.json"
@@ -497,7 +497,7 @@ def cmd_export_dataset(args: argparse.Namespace) -> int:
     out_dir = repo / "paper" / "datasets"
     out_dir.mkdir(parents=True, exist_ok=True)
     ts = time.strftime("%Y%m%d-%H%M%S", time.localtime(clock.now_epoch()))
-    archive = out_dir / f"forkland-dataset-{ts}-{stage}.zip"
+    archive = out_dir / f"forkling-dataset-{ts}-{stage}.zip"
 
     files_to_include = [
         ("memory/diary.jsonl", memory_dir / "diary.jsonl"),
@@ -523,7 +523,7 @@ def cmd_export_dataset(args: argparse.Namespace) -> int:
 
     # Build manifest.
     manifest = {
-        "project": "forkland",
+        "project": "forkling",
         "fork_name": clock.fork_name,
         "exported_at": clock.now_iso(),
         "stage": stage,
@@ -547,14 +547,14 @@ def cmd_export_dataset(args: argparse.Namespace) -> int:
     with zipfile.ZipFile(archive, "w", zipfile.ZIP_DEFLATED) as zf:
         for name, path in files_to_include:
             if path is not None and path.exists():
-                zf.write(path, arcname=f"forkland/{name}")
-        zf.writestr("forkland/manifest.json",
+                zf.write(path, arcname=f"forkling/{name}")
+        zf.writestr("forkling/manifest.json",
                     json.dumps(manifest, indent=2, sort_keys=True))
-        zf.writestr("forkland/clock.json",
+        zf.writestr("forkling/clock.json",
                     json.dumps(clock.as_dict(), indent=2, sort_keys=True))
         # README at the root of the zip
         readme = (
-            "# forkland dataset\n\n"
+            "# forkling dataset\n\n"
             f"Project: {manifest['project']}  \n"
             f"Fork: {manifest['fork_name']}  \n"
             f"Stage: {manifest['stage']} — {manifest['stage_description']}  \n"
@@ -881,7 +881,7 @@ def build_parser() -> argparse.ArgumentParser:
     v = sub.add_parser("verify", help="Verify the capability ledger's SHA-256 chain.")
     v.set_defaults(func=cmd_verify)
 
-    an = sub.add_parser("ancestor", help="Show forkland's lineage (precursor + generations).")
+    an = sub.add_parser("ancestor", help="Show forkling's lineage (precursor + generations).")
     ansub = an.add_subparsers(dest="action", required=True)
     ansub.add_parser("list", help="List all generations.").add_argument("--repo")
     ansub.add_parser("summary", help="One-line summary per generation.").add_argument("--repo")
@@ -904,7 +904,7 @@ def build_parser() -> argparse.ArgumentParser:
     fsyn.add_argument("peer", help="Name of the family member.")
     fam.set_defaults(func=cmd_family)
 
-    pap = sub.add_parser("paper", help="forkland drafts its own paper sections.")
+    pap = sub.add_parser("paper", help="forkling drafts its own paper sections.")
     papsub = pap.add_subparsers(dest="action", required=True)
     papsub.add_parser("render", help="Render the full paper to stdout.")
     papup = papsub.add_parser("update", help="Render and write paper/paper.md.")
@@ -949,7 +949,7 @@ def build_parser() -> argparse.ArgumentParser:
     inc.set_defaults(func=cmd_inception)
 
     clk = sub.add_parser("clock", help="Project clock: t=0 anchor, current day, stage, progress.")
-    clk.add_argument("--fork", default="forkland", help="Name of this fork.")
+    clk.add_argument("--fork", default="forkling", help="Name of this fork.")
     clk.add_argument("--save", action="store_true",
                      help="Persist the clock to <memory_dir>/clock.json.")
     clk.set_defaults(func=cmd_clock)

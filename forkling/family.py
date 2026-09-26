@@ -1,6 +1,6 @@
 """Forkland & Family — federated registry of sovereign forks.
 
-A "family" of forklands is just N independent forkling instances, each
+A "family" of forklings is just N independent forkling instances, each
 running on its own machine / repo / worktree, each evolving on its own.
 This module is a registry — the way forks learn that other forks exist.
 What they do with that knowledge is up to them.

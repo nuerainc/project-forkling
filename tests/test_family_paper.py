@@ -10,7 +10,7 @@ from forkling.paper import render
 
 def test_family_register_and_list(tmp_path):
     f = Family(tmp_path / "fam.json")
-    f.register("Forkland", str(tmp_path / "forkland"), note="primary")
+    f.register("Forkland", str(tmp_path / "forkling"), note="primary")
     f.register("Spoonica", str(tmp_path / "spoonica"), note="control")
     members = f.members()
     assert {m.name for m in members} == {"Forkland", "Spoonica"}
@@ -53,6 +53,6 @@ def test_paper_render_uses_state(tmp_path):
     diary = Diary(tmp_path / "diary.jsonl")
     diary.write("milestone", "shipped v0.2", milestone=True)
     text = render(tmp_path)
-    assert "forkland" in text
+    assert "forkling" in text
     assert "capability" in text.lower()
     assert "1" in text  # one capability

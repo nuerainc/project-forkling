@@ -4,7 +4,7 @@ Maintains a JSON database of grant programs with eligibility metadata.
 Matches the project's profile against each program, ranks by fit, and
 drafts a tailored 2-paragraph proposal.
 
-This is the agent's "money module" — once the dogfood loop has produced
+This is the agent's "money module" — once the forkling loop has produced
 enough evolutionary history, forkling can use it as evidence in
 applications.
 """

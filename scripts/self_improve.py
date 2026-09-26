@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""CI entry point — invoked by .github/workflows/dogfood.yml.
+"""CI entry point — invoked by .github/workflows/forkling.yml.
 
 The agent reads its own source, proposes a tiny safe change, and either
 ships it (commit + tag) or rolls back. The whole thing must complete in
@@ -13,7 +13,7 @@ import json
 import sys
 from pathlib import Path
 
-# Make `dogfood` importable when this script is run from repo root.
+# Make `forkling` importable when this script is run from repo root.
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from forkling import Agent, Config, LLM, Memory, Planner, SelfImprover  # noqa: E402

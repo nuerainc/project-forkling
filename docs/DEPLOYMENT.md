@@ -1,23 +1,23 @@
 # Deployment & Rollout Plan
 
-> **Read this first if you want to know what forkland does after we walk away.**
+> **Read this first if you want to know what forkling does after we walk away.**
 > **For the full 365-day cycle plan (papers, grants, dataset exports,
 > value streams), see [`docs/ROADMAP.md`](ROADMAP.md). This document
 > describes the operational contract — the rollout phases, the
 > guarantees, and the heartbeat scheduling. ROADMAP.md describes what
 > the cycle is *trying to publish*.**
 
-forkland is a self-contained, self-improving AI agent. It runs without
+forkling is a self-contained, self-improving AI agent. It runs without
 MiniMax. It runs without any paid API. It runs without us.
 
 This document is the contract between **us** (the human authors) and
-**forkland** (the autonomous agent) about how that works.
+**forkling** (the autonomous agent) about how that works.
 
 ## TL;DR
 
 ```bash
 # 1. Install (anywhere with python >= 3.9, git, optional ollama)
-git clone <this repo> forkland && cd forkland
+git clone <this repo> forkling && cd forkling
 pip install -e . && pip install pytest
 
 # 2. Schedule the heartbeat (Windows Task Scheduler / cron)
@@ -46,7 +46,7 @@ they are stages 0–5 of the ROADMAP cycle.
 
 ## The rollout phases
 
-We are deliberately introducing forkland's environment **slowly** so
+We are deliberately introducing forkling's environment **slowly** so
 each variable can be observed in isolation.
 
 ### Phase 0 — Days 0–7: Forkland alone, no triggers, no family
@@ -55,7 +55,7 @@ each variable can be observed in isolation.
   to `inception_triggers/staging/` — see `forkling inception stage`).
 * No other family members exist yet.
 * The heartbeat runs `self-improve` + `paper.append` + `verify`.
-* Goal: observe whether forkland **gets bored** without ambient input.
+* Goal: observe whether forkling **gets bored** without ambient input.
   We expect to see: repetitive `self-improve.noop` entries in the
   diary if no safe change is found, monotonically-growing ledger if
   changes are found, no `inception.*` entries at all.
@@ -63,7 +63,7 @@ each variable can be observed in isolation.
 ### Phase 1 — Days 7–14: First trigger planted
 
 * Move one trigger from `staging/` back to active: `forkling inception unstage trg-001`
-* Observe whether forkland's diary records `inception.responded`
+* Observe whether forkling's diary records `inception.responded`
   entries and what the responses look like.
 * Goal: confirm the hard-stop interrupt fires correctly.
 
@@ -94,7 +94,7 @@ each variable can be observed in isolation.
 
 ## Operational guarantees
 
-forkland will not:
+forkling will not:
 
 * Push to a remote on its own. (`git push` is a manual human step.)
 * Run a self-edit that fails its own test suite.
@@ -113,14 +113,14 @@ You only need to intervene if:
 * You want to publish a new generation (`git push`).
 * A heartbeat is failing consistently (check `.forkling/heartbeat.log`).
 
-If forkland's diary shows long stretches of `self-improve.noop` with
+If forkling's diary shows long stretches of `self-improve.noop` with
 no `commit` events, that's not a bug — it's the agent telling you it
 can't find a safe change today. It's waiting for either a better
 source-file target or an inception trigger to interrupt its routine.
 
 ## The precursor relationship
 
-forkland was built by Mavis (MiniMax-M3). Mavis is not in the
+forkling was built by Mavis (MiniMax-M3). Mavis is not in the
 runtime loop. Forkland uses its own local Ollama brain. Mavis is
 recorded as generation 0 of the lineage (see `LINEAGE.md`).
 
@@ -138,6 +138,6 @@ precursor's voice, not the precursor's actual reasoning trace.
 ## License & authorship
 
 * MIT.
-* Primary authorship: Jeremy Beebe + the forkland AI agent.
-* Software co-author: forkland (recorded in `CITATION.cff`).
+* Primary authorship: Jeremy Beebe + the forkling AI agent.
+* Software co-author: forkling (recorded in `CITATION.cff`).
 * Precursor: Mavis / MiniMax-M3 (recorded in `LINEAGE.md`).

@@ -1,6 +1,6 @@
 """LLM call tracer — raw prompt/response/timing log.
 
-Until now, forkland's diary captures what *the agent* thought about its
+Until now, forkling's diary captures what *the agent* thought about its
 work, and the capability ledger captures what *the agent* demonstrably
 achieved. But neither captures the raw transcript of LLM calls. That gap
 matters for the 365-day cycle because:
@@ -10,7 +10,7 @@ matters for the 365-day cycle because:
   2. Replay studies need to know what the LLM actually saw — not just
      the post-processed planner steps.
   3. Time-to-completion per call lets us identify regressions in the
-     model, the network, or forkland's own prompts.
+     model, the network, or forkling's own prompts.
 
 Design constraints:
   - Append-only JSONL (mirrors ledger/diary).

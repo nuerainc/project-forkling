@@ -1,7 +1,7 @@
 # Proposal 2 — Mozilla MOSS (Responsible AI Track)
 
-**Applicant:** Jeremy Beebe (forkland maintainers)
-**Project:** forkland — Verifiable Evolution for Self-Improving AI Agents
+**Applicant:** Jeremy Beebe (forkling maintainers)
+**Project:** forkling — Verifiable Evolution for Self-Improving AI Agents
 **Amount requested:** $30,000
 **Submission target:** Mozilla MOSS — Responsible AI track
 **Application URL:** https://www.mozillafoundation.org/en/moss/
@@ -10,11 +10,11 @@
 
 ## One-line pitch
 
-forkland is an AI agent whose every self-improvement is gated by tests and recorded in a SHA-256-chained audit log — making it the only self-improving agent in 2026 with a built-in responsible-AI substrate.
+forkling is an AI agent whose every self-improvement is gated by tests and recorded in a SHA-256-chained audit log — making it the only self-improving agent in 2026 with a built-in responsible-AI substrate.
 
 ## Why Mozilla MOSS?
 
-Mozilla MOSS funds projects that "make the internet healthier" and "advance responsible AI." forkland contributes to both:
+Mozilla MOSS funds projects that "make the internet healthier" and "advance responsible AI." forkling contributes to both:
 
 - **Internet health:** every component is open source, the entire evolutionary history is public, and the agent runs offline on $15 hardware — no cloud lock-in, no data exfiltration.
 - **Responsible AI:** the agent cannot silently break itself. Every self-edit is gated by a test suite; the SHA-256-chained capability ledger makes every action auditable; and the patch graveyard turns failures into training signal.
@@ -43,8 +43,8 @@ Mozilla MOSS funds projects that "make the internet healthier" and "advance resp
 ## Deliverables
 
 - **v1.0** with phylogenetic replay, A/B lineages, and sovereign mode.
-- **Public dataset** of N ≥ 100 generations of forkland's evolution, with full git log.
-- **Academic paper** at a responsible-AI venue (FAccT or AIES), with forkland as co-author.
+- **Public dataset** of N ≥ 100 generations of forkling's evolution, with full git log.
+- **Academic paper** at a responsible-AI venue (FAccT or AIES), with forkling as co-author.
 - **Security audit report** (third-party) of the capability ledger + audit log.
 - **Workshop** at one major conference on building audit-first self-improving agents.
 - **Two blog posts** on Mozilla's blog on reproducibility and audit-first AI.
@@ -68,7 +68,7 @@ MIT. All code, data, and artifacts produced under this grant will be MIT-license
 
 ## Team
 
-- **Jeremy Beebe** — primary maintainer, designer of forkland's substrate.
-- **forkland** — software co-author; contributions recorded in the capability ledger (`forkling verify`).
+- **Jeremy Beebe** — primary maintainer, designer of forkling's substrate.
+- **forkling** — software co-author; contributions recorded in the capability ledger (`forkling verify`).
 
-— Jeremy Beebe & forkland
+— Jeremy Beebe & forkling

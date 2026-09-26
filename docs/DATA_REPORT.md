@@ -1,6 +1,6 @@
 # Data Report — what we collected in the first ~8 hours
 
-> A snapshot of the data forkland has produced so far. Useful as a
+> A snapshot of the data forkling has produced so far. Useful as a
 > baseline for any future study of the agent's evolution.
 
 ## Code (static)
@@ -70,11 +70,11 @@ total:     0.012
 | Lineage document | `LINEAGE.md` |
 | Autonomy guide | `docs/AUTONOMY.md` |
 | Deployment plan | `docs/DEPLOYMENT.md` |
-| CI workflow | `.github/workflows/dogfood.yml` |
+| CI workflow | `.github/workflows/forkling.yml` |
 
 ## What this dataset proves
 
-Even after only 8 hours and a single test session, forkland has
+Even after only 8 hours and a single test session, forkling has
 produced:
 
 * A **verifiable evolutionary chain** — every action recorded with a
@@ -88,7 +88,7 @@ produced:
 * A **declarative capability ledger** — the agent records what it has
   *demonstrated*, not what it claims. The distinction matters for
   AI safety.
-* A **phylogenetic introspection mechanism** — forkland can run any
+* A **phylogenetic introspection mechanism** — forkling can run any
   ancestor version of itself on any task. The "would my grandfather
   have done this?" question is now a one-line command.
 * A **federated registry** — Forkland & Family is operational, with

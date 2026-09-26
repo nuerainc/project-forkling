@@ -1,8 +1,8 @@
-"""Project clock — forkland's internal sense of time.
+"""Project clock — forkling's internal sense of time.
 
 The 365-day research cycle has a fixed t=0 anchor: 2026-09-16 21:00 MDT
 (when the user said "today, 9pm, the project clock starts now"). Every
-artifact in forkland that wants to talk about "how far along we are" —
+artifact in forkling that wants to talk about "how far along we are" —
 ROADMAP.md, paper stage selection, grant stage tagging, fitness
 trajectories — defers to this module.
 
@@ -48,7 +48,7 @@ class Clock:
     note: str = ""
 
     @classmethod
-    def from_env(cls, fork_name: str = "forkland") -> "Clock":
+    def from_env(cls, fork_name: str = "forkling") -> "Clock":
         """Build a clock from env-overridable inputs.
 
         Precedence: FORKLING_T0 (epoch seconds) > FORKLING_T0_ISO (ISO 8601)
@@ -80,7 +80,7 @@ class Clock:
             obj = json.loads(p.read_text(encoding="utf-8"))
             return cls(
                 t0_epoch=float(obj["t0_epoch"]),
-                fork_name=obj.get("fork_name", "forkland"),
+                fork_name=obj.get("fork_name", "forkling"),
                 note=obj.get("note", ""),
             )
         except (json.JSONDecodeError, KeyError, ValueError):

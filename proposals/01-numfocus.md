@@ -1,7 +1,7 @@
 # Proposal 1 — NumFOCUS Small Grants
 
-**Applicant:** Jeremy Beebe (forkland maintainers)
-**Project:** forkland — Version-Control-Native Evolution for Self-Improving Code Agents
+**Applicant:** Jeremy Beebe (forkling maintainers)
+**Project:** forkling — Version-Control-Native Evolution for Self-Improving Code Agents
 **Amount requested:** $5,000
 **Submission target:** NumFOCUS Small Grants Program
 **Application URL:** https://numfocus.org/programs/small-grants
@@ -10,11 +10,11 @@
 
 ## One-line pitch
 
-forkland turns git into an evolutionary substrate for AI agents — every commit is a generation, the test suite is the fitness function, and the entire evolutionary history is auditable.
+forkling turns git into an evolutionary substrate for AI agents — every commit is a generation, the test suite is the fitness function, and the entire evolutionary history is auditable.
 
 ## Why NumFOCUS?
 
-forkland is a stdlib-only Python project (zero third-party deps), MIT-licensed, and ships with a 50-test pytest suite. It is the kind of project NumFOCUS exists to support: open-source scientific infrastructure that anyone with Python ≥ 3.9 can run, including on low-memory hardware.
+forkling is a stdlib-only Python project (zero third-party deps), MIT-licensed, and ships with a 50-test pytest suite. It is the kind of project NumFOCUS exists to support: open-source scientific infrastructure that anyone with Python ≥ 3.9 can run, including on low-memory hardware.
 
 ## What we will do with $5,000
 
@@ -24,25 +24,25 @@ forkland is a stdlib-only Python project (zero third-party deps), MIT-licensed, 
 | Domain + hosting (1 yr) | $50 | for the public evolutionary history dataset |
 | Coffee (engineer fuel, ~3 mo) | $500 | |
 | Travel to one Python conference | $1,500 | PyCon US 2027 or EuroPython 2027 |
-| CI compute credits (GitHub Actions) | $200 | for the dogfood CI loop |
+| CI compute credits (GitHub Actions) | $200 | for the forkling CI loop |
 | Open-source maintainer stipend | $2,500 | partial; matches half-time focus |
 | Buffer | $220 | |
 | **Total** | **$5,000** | |
 
 ## Why we are fundable
 
-1. **Public ledger.** Every capability forkland demonstrates is recorded in a SHA-256-chained append-only log (`forkling verify`). This is verifiable evidence of impact, not self-reported metrics.
+1. **Public ledger.** Every capability forkling demonstrates is recorded in a SHA-256-chained append-only log (`forkling verify`). This is verifiable evidence of impact, not self-reported metrics.
 2. **Public evolutionary history.** The entire evolution of the agent is in `git log`. Anyone can clone, replay, or fork.
 3. **Reproducibility.** `python -m forkling doctor && python -m forkling verify` is the entire setup. No proprietary models, no paid APIs.
-4. **Python ecosystem fit.** Pure stdlib + pytest. Anyone teaching Python can use forkland as a teaching example of Plan-Act-Reflect agents.
+4. **Python ecosystem fit.** Pure stdlib + pytest. Anyone teaching Python can use forkling as a teaching example of Plan-Act-Reflect agents.
 5. **Already shipped.** v0.2 is committed, tested, and self-improving.
 
 ## Deliverables
 
 - v1.0 release with phylogenetic-replay module on real hardware.
-- Public dataset of N ≥ 30 generations of forkland's evolution as a single git repository.
+- Public dataset of N ≥ 30 generations of forkling's evolution as a single git repository.
 - A PyCon talk / workshop titled "Build your own self-improving AI agent in 200 lines of Python."
-- A NumFOCUS blog post on how to reproduce forkland's setup.
+- A NumFOCUS blog post on how to reproduce forkling's setup.
 
 ## Evidence of impact
 
@@ -66,6 +66,6 @@ MIT. All code, data, and artifacts produced under this grant will be MIT-license
 
 ## Closing
 
-forkland is the smallest possible self-improving agent that closes the loop end-to-end. We're not building a framework — we're showing the substrate. NumFOCUS is the right partner because reproducibility is the project's foundational value, and that's exactly what NumFOCUS rewards.
+forkling is the smallest possible self-improving agent that closes the loop end-to-end. We're not building a framework — we're showing the substrate. NumFOCUS is the right partner because reproducibility is the project's foundational value, and that's exactly what NumFOCUS rewards.
 
-— Jeremy Beebe & forkland
+— Jeremy Beebe & forkling
