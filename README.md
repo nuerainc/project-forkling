@@ -15,9 +15,9 @@
 ![No paid APIs](https://img.shields.io/badge/no_paid_APIs-000000)
 ![Raspberry Pi Zero target](https://img.shields.io/badge/hardware-Pi_Zero_(512MB)-C51A4A?logo=raspberrypi)
 
-![Tests: 225 / 225 passing](https://img.shields.io/badge/tests-225%2F225_passing-2EA043)
+![Tests: 215 / 215 passing](https://img.shields.io/badge/tests-215%2F215_passing-2EA043)
 ![LLM: llama3.2:3b default](https://img.shields.io/badge/LLM-llama3.2%3A3b-FF6F00)
-![365-day cycle: day 7 / 365](https://img.shields.io/badge/cycle-day_7%2F365-orange)
+![365-day cycle: day 9 / 365](https://img.shields.io/badge/cycle-day_9%2F365-orange)
 
 [**TL;DR**](#tldr) ·
 [**Quick start**](#quick-start) ·
@@ -40,11 +40,14 @@ Forkling is a 365-day, **self-contained, evolutionary AI organism** that lives e
 
 ## Current research
 
-**Status (day 9):** substrate complete, harness complete, three
-pre-registered experiments run, two null results so far. We do
-not yet claim this advances the state of the art — but we have
-a reproducible experiment infrastructure and a clean null result
-to publish when the third experiment lands.
+**Status (day 9):** substrate complete, three pre-registered
+experiments run, three null results. A post-hoc audit found that
+the experiment harness could not have detected a selection effect
+(see [exp003 validity caveat](paper/exp003_results.md#validity-caveat)),
+so the nulls say little about selection itself. exp004 is
+re-registered to fix the harness and move to a harder benchmark
+before any exp004 data is collected. We do not claim this advances
+the state of the art.
 
 ### Active hypothesis chain
 
@@ -52,7 +55,8 @@ to publish when the third experiment lands.
 |---|---|---|
 | **exp001** — does selection help? | [`paper/hypothesis.md`](paper/hypothesis.md) | **NULL** ([results](paper/exp001_results.md)) |
 | **exp002** — does it help on a stronger model + tighter prompt? | [`paper/hypothesis_v2.md`](paper/hypothesis_v2.md) | **NULL** ([results](paper/exp002_results.md)) |
-| **exp003** — is selection a filter or an amplifier? | [`paper/hypothesis_v3.md`](paper/hypothesis_v3.md) | **running** |
+| **exp003** — is selection a filter or an amplifier? | [`paper/hypothesis_v3.md`](paper/hypothesis_v3.md) | **NULL**, not informative ([results](paper/exp003_results.md), [caveat](paper/exp003_results.md#validity-caveat)) |
+| **exp004** — the same question, with a selection-sensitive endpoint on a harder benchmark | [`paper/hypothesis_v4r1.md`](paper/hypothesis_v4r1.md) (supersedes [`hypothesis_v4.md`](paper/hypothesis_v4.md)) | **not started** (benchmark calibration first) |
 
 ### exp003 — the mechanism question
 
@@ -65,6 +69,36 @@ re-ranking of K independent draws, the loop is amplifying. If
 they tie, the loop is just a filter — and the entire "evolve loop"
 paradigm could be replaced with a much simpler "draw N, re-rank"
 pipeline. Either result is publishable.
+
+**Result: NULL.** pass@5 was I = 0.80 vs P = 0.90 (U = 45,
+p = 0.71), with P identical to N. Afterwards we found that the
+result can't answer the question it was designed for:
+
+- **The endpoint ignores selection.** pass@5 counts a task as solved
+  if *any* of the first five draws passes the held-out tests, whether
+  or not the arm chose it. Post-hoc re-ranking therefore cannot move
+  it; P == N is true by construction.
+- **The in-loop arms can't build on their own progress.** The prompt
+  always shows the original `buggy.py`, but patches are applied to
+  the evolved file. After the first accepted patch most later patches
+  no longer apply: parse_ok falls from 0.9 to about 0.3 in arms I and
+  R, but not in N or P.
+- **The benchmark is near ceiling** (arm N pass@5 = 0.90).
+
+exp001 and exp002 share the first two problems. Full details are in the
+[validity caveat](paper/exp003_results.md#validity-caveat).
+
+### exp004 — re-registered
+
+[`paper/hypothesis_v4r1.md`](paper/hypothesis_v4r1.md) keeps the
+exp003 question and arms but changes three things before any data
+is collected: the primary endpoint becomes the held-out pass rate
+of the patch each arm actually *returns* (so selection can matter);
+the in-loop arms prompt with the current source plus the last
+failing test output (so iteration can matter); and it runs on
+FORKLAND-BENCH-002, a harder benchmark calibrated so arm N leaves
+headroom. It also adds a harness self-test that must pass before
+the experiment runs.
 
 ### Benchmark
 
