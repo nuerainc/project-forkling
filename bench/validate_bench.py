@@ -76,9 +76,15 @@ def main() -> int:
             fail += 1
             continue
         buggy_src = (t.abs_path() / "buggy.py").read_text(encoding="utf-8")
-        if grade(t, buggy_src).visible_pass:
+        buggy_result = grade(t, buggy_src)
+        if buggy_result.visible_pass:
             print(f"[FAIL] {t.id}: buggy.py passes every visible test "
                   "(no selection signal)")
+            fail += 1
+            continue
+        if buggy_result.held_out_pass:
+            print(f"[FAIL] {t.id}: buggy.py passes every held-out test "
+                  "(an unfixed file would be graded as a fix)")
             fail += 1
             continue
         if args.strict:
@@ -97,7 +103,7 @@ def main() -> int:
                 fail += 1
                 continue
         print(f"[OK]   {t.id} ({t.kind}): expected fix passes visible + held-out; "
-              "buggy.py fails visible")
+              "buggy.py fails visible + held-out")
     if fail:
         print(f"\n{fail} task(s) failed validation. Benchmark is NOT frozen.")
         return 1
