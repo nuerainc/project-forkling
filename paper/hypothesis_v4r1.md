@@ -2,9 +2,9 @@
 
 **Author:** Jeremy Beebe (draft prepared with Claude Code)
 **Date written:** 2026-09-26
-**Status:** DRAFT. Becomes binding when a maintainer signs off below
-and commits. No exp004 data (calibration or main) has been collected;
-`results/` contains no `exp004*` files at the time of writing.
+**Status:** ACTIVE (signed off 2026-09-26; see the end of this
+document). No exp004 data (calibration or main) had been collected at
+sign-off; `results/` contained no `exp004*` files.
 **Supersedes:** [hypothesis_v4.md](hypothesis_v4.md), before any data
 was collected under it. `hypothesis_v4.md` is left unedited as the
 record of what was originally registered.
@@ -114,7 +114,8 @@ test.
   `mann_whitney_u` is an unpaired rank-sum test; with every arm run
   on the same tasks, a paired test is the correct one.)
 - **Effect size:** the mean per-task difference with a 95% bootstrap
-  CI (10,000 resamples over tasks, seed 20261025). Report it
+  CI (10,000 resamples over tasks; the resampling seed is derived
+  from the run seed and the comparison name). Report it
   whatever the p-value.
 
 With n = 10 tasks, the smallest attainable two-sided p is 0.002, so
@@ -171,9 +172,14 @@ these changes.
 
 ### Calibration run
 
-Arm N only, K = 20 independent draws per candidate, same model,
-sampling settings and seed as the main run. Calibration draws are
-**not** reused in the main experiment. For each candidate, record:
+Arm N only, K = 20 independent draws per candidate, same model and
+sampling settings as the main run, but **seed 20261026** (main run:
+20261025). Per-call seeds are derived from (seed, task, replicate,
+attempt), so with the main-run seed the first 10 calibration draws
+would be exactly the main run's replicate-0 draws for arms N and P,
+and tasks would be selected on the samples they are later scored on.
+Calibration draws are **not** reused in the main experiment. For each
+candidate, record:
 
 - `p1` = fraction of the 20 draws that pass held-out tests
 - `parse_ok_rate`
@@ -281,7 +287,7 @@ python bench/validate_bench.py --strict \
 python -m forkling experiment run --protocol 2 \
     --bench bench/benchmark_002_proof/FORKLAND-BENCH-002-candidates.jsonl \
     --k 20 --replicates 1 --temperature 0.8 \
-    --model qwen2.5-coder:3b --seed 20261025 --arms N \
+    --model qwen2.5-coder:3b --seed 20261026 --arms N \
     --out results/exp004_calibration.json
 
 # 3. Freeze (committed before step 2 runs).
@@ -323,6 +329,7 @@ the commit that produced the data.
 
 ---
 
-**Sign-off:** _pending._ To make this binding, a maintainer replaces
-this line with their name and date and commits. After that commit
-the document is frozen; changes need a new re-registration.
+**Sign-off:** 2026-09-26. Approved by the repository maintainer
+running Claude Code session https://claude.ai/code/session_01GD9n5bDoCjcGobAEgBqDoG, who instructed Claude
+to sign off on their behalf; committed by Claude. Frozen from this
+commit; changes need a new re-registration.

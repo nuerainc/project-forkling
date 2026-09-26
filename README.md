@@ -56,8 +56,8 @@ the state of the art.
 | **exp001** — does selection help? | [`paper/hypothesis.md`](paper/hypothesis.md) | **NULL** ([results](paper/exp001_results.md)) |
 | **exp002** — does it help on a stronger model + tighter prompt? | [`paper/hypothesis_v2.md`](paper/hypothesis_v2.md) | **NULL** ([results](paper/exp002_results.md)) |
 | **exp003** — is selection a filter or an amplifier? | [`paper/hypothesis_v3.md`](paper/hypothesis_v3.md) | **NULL**, not informative ([results](paper/exp003_results.md), [caveat](paper/exp003_results.md#validity-caveat)) |
-| **exp003b** — exp003 rerun on the fixed harness | [`paper/hypothesis_v3b.md`](paper/hypothesis_v3b.md) | **not started** (draft pre-registration) |
-| **exp004** — the same question, with a selection-sensitive endpoint on a harder benchmark | [`paper/hypothesis_v4r1.md`](paper/hypothesis_v4r1.md) (supersedes [`hypothesis_v4.md`](paper/hypothesis_v4.md)) | **not started** (benchmark calibration first) |
+| **exp003b** — exp003 rerun on the fixed harness | [`paper/hypothesis_v3b.md`](paper/hypothesis_v3b.md) | **pre-registered**, not yet run |
+| **exp004** — the same question, with a selection-sensitive endpoint on a harder benchmark | [`paper/hypothesis_v4r1.md`](paper/hypothesis_v4r1.md) (supersedes [`hypothesis_v4.md`](paper/hypothesis_v4.md)) | **pre-registered**, not yet run (benchmark calibration first) |
 
 ### exp003 — the mechanism question
 

@@ -2,8 +2,8 @@
 
 **Author:** Jeremy Beebe (draft prepared with Claude Code)
 **Date written:** 2026-09-26
-**Status:** DRAFT. Becomes binding when a maintainer signs off below
-and commits. No exp003b data has been collected.
+**Status:** ACTIVE (signed off 2026-09-26; see the end of this
+document). No exp003b data had been collected at sign-off.
 **Relation to exp003:** exp003 ([pre-registration](hypothesis_v3.md),
 [results](exp003_results.md)) stands as run and reported. exp003b asks
 the same question on the same benchmark with the harness defects
@@ -139,6 +139,7 @@ or contradicts.
 
 ---
 
-**Sign-off:** _pending._ To make this binding, a maintainer replaces
-this line with their name and date and commits. After that commit the
-document is frozen.
+**Sign-off:** 2026-09-26. Approved by the repository maintainer
+running Claude Code session https://claude.ai/code/session_01GD9n5bDoCjcGobAEgBqDoG, who instructed Claude
+to sign off on their behalf; committed by Claude. Frozen from this
+commit.
