@@ -71,6 +71,10 @@ jobs:
           DOGFOOD_OLLAMA_URL: "http://127.0.0.1:1"
         run: python scripts/self_improve.py
       - name: Push the forkling commit (if any)
+        # Only when running on main itself. On a pull_request event HEAD is
+        # the PR's merge commit, so pushing it would merge the PR into main
+        # without review.
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         run: git push origin HEAD:main
         # The script only commits when tests pass; if it didn't commit, this
         # is a no-op push.
