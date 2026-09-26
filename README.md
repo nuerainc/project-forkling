@@ -15,7 +15,7 @@
 ![No paid APIs](https://img.shields.io/badge/no_paid_APIs-000000)
 ![Raspberry Pi Zero target](https://img.shields.io/badge/hardware-Pi_Zero_(512MB)-C51A4A?logo=raspberrypi)
 
-![Tests: 209 / 209 passing](https://img.shields.io/badge/tests-209%2F209_passing-2EA043)
+![Tests: 225 / 225 passing](https://img.shields.io/badge/tests-225%2F225_passing-2EA043)
 ![LLM: llama3.2:3b default](https://img.shields.io/badge/LLM-llama3.2%3A3b-FF6F00)
 ![365-day cycle: day 7 / 365](https://img.shields.io/badge/cycle-day_7%2F365-orange)
 
@@ -40,35 +40,69 @@ Forkling is a 365-day, **self-contained, evolutionary AI organism** that lives e
 
 ## Current research
 
-As of day 7, the substrate exists but no science has been run yet.
-We are not yet in a position to claim "this advances the state of the
-art." What we have is the loop; what we are now building is the
-experiment that asks whether the loop helps.
+**Status (day 9):** substrate complete, harness complete, three
+pre-registered experiments run, two null results so far. We do
+not yet claim this advances the state of the art — but we have
+a reproducible experiment infrastructure and a clean null result
+to publish when the third experiment lands.
 
-**Pre-registered hypothesis:** [`paper/hypothesis.md`](paper/hypothesis.md)
+### Active hypothesis chain
 
-> H1: An evolve loop with pytest-based selection pressure on
-> agent-proposed patches achieves higher pass@5 than a no-iterate
-> baseline AND higher than a random-accept evolve loop, on
-> FORKLAND-BENCH-001, with paired Mann–Whitney U p<0.025 (Bonferroni).
+| Experiment | Pre-registration | Result |
+|---|---|---|
+| **exp001** — does selection help? | [`paper/hypothesis.md`](paper/hypothesis.md) | **NULL** ([results](paper/exp001_results.md)) |
+| **exp002** — does it help on a stronger model + tighter prompt? | [`paper/hypothesis_v2.md`](paper/hypothesis_v2.md) | **NULL** ([results](paper/exp002_results.md)) |
+| **exp003** — is selection a filter or an amplifier? | [`paper/hypothesis_v3.md`](paper/hypothesis_v3.md) | **running** |
 
-**Benchmark:** [`bench/FORKLAND-BENCH-001`](bench/FORKLAND-BENCH-001.jsonl) — 10 small Python bug-fix tasks spanning off-by-one, wrong operator, missing edge case, wrong return, and typo. Visible tests drive selection; held-out tests drive grading.
+### exp003 — the mechanism question
 
-**Design writeup:** [`docs/EXPERIMENT_DESIGN.md`](docs/EXPERIMENT_DESIGN.md)
+After two nulls on "does selection help?", exp003 asks the
+mechanism-level question: **is selection a filter or an amplifier?**
+It runs four arms (N=no-iterate, P=post-hoc re-rank, I=in-loop
+select, R=in-loop random) and the **primary pre-registered
+comparison is I vs P**. If in-loop selection beats post-hoc
+re-ranking of K independent draws, the loop is amplifying. If
+they tie, the loop is just a filter — and the entire "evolve loop"
+paradigm could be replaced with a much simpler "draw N, re-rank"
+pipeline. Either result is publishable.
 
-**Three arms:**
-- **A — baseline.** One-shot generation, K independent draws per task.
-- **B — evolve + select.** Iterate; keep a patch iff visible tests pass.
-- **C — evolve + random.** Iterate; accept each patch with probability 0.5 regardless of outcome.
+### Benchmark
 
-Run command (planned budget: K=10, 300 LLM calls, ~30–60 min on llama3.2:3b):
+[`bench/FORKLAND-BENCH-001`](bench/FORKLAND-BENCH-001.jsonl) — 10 small
+Python bug-fix tasks spanning off-by-one, wrong operator, missing
+edge case, wrong return, and typo. Visible tests drive selection;
+held-out tests drive grading. Frozen at this commit.
+
+### Model decision
+
+[`paper/MODEL_DECISION.md`](paper/MODEL_DECISION.md) — explains why
+we use `qwen2.5-coder:3b` for experiments 002 and 003 (fits in 4 GB
+VRAM, fully GPU-accelerated). The original `qwen2.5-coder:7b`
+partial-offloads to CPU on this hardware and is unrunnable in
+reasonable time.
+
+### Running the experiments
 
 ```bash
+# Validate the benchmark is still frozen.
+python bench/validate_bench.py
+
+# Run any of the three experiments.
 python -m forkling experiment run \
     --bench bench/FORKLAND-BENCH-001.jsonl \
-    --k 10 --model llama3.2:3b \
-    --out results/exp001.json
+    --k 10 --model qwen2.5-coder:3b --seed 20261025 \
+    --arms N,P,I,R \
+    --checkpoint results/exp003.ckpt.jsonl \
+    --out results/exp003.json
+
+# Summarize any results/exp*.json.
+python summarize.py results/exp003.json
 ```
+
+The `--checkpoint` flag flushes every (task, arm) pair to a JSONL
+file as it completes. A crash mid-experiment preserves everything
+up to the last completed pair; the next run with
+`--resume-from` skips them.
 
 Validate the benchmark is still frozen:
 
