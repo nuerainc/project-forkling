@@ -235,3 +235,36 @@ A release tarball contains:
 
 The schema doc itself is the contract. Anyone holding the schema
 can read a release; anyone running the code can produce one.
+
+---
+
+## 10. v0.2 addendum (2026-09-26): experiment result schema
+
+The exp004 pre-registration (`paper/hypothesis_v4r1.md`) ships
+a protocol-2 harness (`forkling/experiment2.py`) whose
+`results/exp00N.json` schema differs from protocol 1's:
+
+- `config` adds `replicates`, `temperature`, and a per-call
+  `seed` derived deterministically from
+  `(seed, arm, task, replicate, attempt)`.
+- `metrics` is keyed by arm letter (N/P/I/R), not A/B/C, and
+  each arm gets `returned_pass_mean`,
+  `returned_pass_per_replicate`, `parse_ok_rate`,
+  `commit_rate`, and `n_records`.
+- `per_task_pass_at_5` is replaced by
+  `per_task_returned_pass`: a dict `task_id → arm → list of
+  S booleans` (S = `--replicates`).
+- `stats` adds the bootstrap CI alongside the Wilcoxon
+  statistic: `{comparison → {u, p, ci_lo, ci_hi}}`.
+- `records[arm]` is a list of
+  `(replicate, attempt)` records, each with `returned_pass`,
+  `visible_passed`, `visible_total`, `temperature`, `seed`,
+  `used_llm` (false records were infra fallbacks; v4r1 §8
+  aborts the experiment if these exceed 20%).
+
+Protocol 1 result files (`exp001`, `exp002`, `exp003`) retain
+the old schema. They are not migrated. They are not re-run.
+The audit at `paper/exp003_results.md` "Validity caveat"
+explains why protocol 1 cannot answer the question.
+
+The forge-side JSONL files (§1–§7) are unchanged in v0.2.

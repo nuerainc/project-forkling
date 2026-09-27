@@ -1,6 +1,6 @@
 # Methods Outline — Pre-Registered Falsifiable Science on Agent Self-Improvement
 
-**Status:** outline draft, v0.1. **Not a paper yet.** This is a 1-page
+**Status:** outline draft, v0.2. **Not a paper yet.** This is a 1-page
 frame a future draft can expand. Sections are scaffolds; the actual
 prose lives in `exp00N_results.md`, `hypothesis_vN.md`,
 `MODEL_DECISION.md`, and the SCHEMA / PROTOCOL / FAILURE_TAXONOMY
@@ -8,7 +8,16 @@ docs.
 
 **Working title (suggestion):** *"Pre-Registered Falsifiable
 Methodology for Long-Horizon Agent Self-Improvement, with Three
-Convergent Nulls as Preliminary Data."*
+Convergent Nulls as Preliminary Data — and a Measurement-Failure
+Class Discovered While Doing It."*
+
+**v0.2 update (2026-09-26).** Adds §1.1 (the audit), revises
+§2.2 (harness self-test as part of the methodology), revises §4
+(preliminary data — three protocol-1 nulls and the audit are
+both preliminary), and renames the v5 framing so the paper
+does not claim a settled conclusion from nulls that the post-hoc
+audit says the original harness could not have produced either
+way.
 
 ---
 
@@ -30,6 +39,21 @@ The contribution of this paper is the *methodology*: how to
 do pre-registered falsifiable science on long-horizon agent
 self-improvement, with examples of what it produces when
 applied honestly.
+
+### 1.1 What the discipline surfaced on first inspection
+
+The methodology is not just "register then run." It also
+includes **self-audit**: after each run, an audit of the
+harness against the question it claims to answer. Applied to
+exp003, this audit produced the "Validity caveat" in
+`paper/exp003_results.md` and forced a re-registration
+(`paper/hypothesis_v4r1.md`) rather than a re-run. We treat
+that audit as a feature of the methodology, not a one-off
+correction: every protocol version ships with a self-test
+that runs scripted fake LLMs through the harness and
+requires the harness to detect a filter effect, an amplifier
+effect, and no effect when there is none. If the self-test
+fails, no experiment runs.
 
 ## 2. Method (≈1200 words)
 
@@ -144,8 +168,12 @@ test suite the way we do.
 
 ## 4. Preliminary data (≈800 words)
 
-Three pre-registered experiments, all on
-`FORKLAND-BENCH-001` with `qwen2.5-coder:3b` at K=10.
+**Two parallel sources of evidence; both are preliminary.**
+
+### 4.1 Three pre-registered nulls (protocol 1)
+
+Three pre-registered experiments on `FORKLAND-BENCH-001`
+with `qwen2.5-coder:3b` at K=10.
 
 | Exp | Hypothesis | Result | p (primary) |
 |---|---|---|---|
@@ -157,23 +185,35 @@ exp001/exp002 each tested two primaries; exp001's writeup
 noted the dilution. exp003 collapsed to one primary. All
 three returned null.
 
-Mechanism-level interpretation (exp003 §"Mechanism-level
-answer"):
-- `I == R` on pass@5 (selection no better than random accept).
-- `I < P` on pass@5 (in-loop worse than post-hoc re-rank).
-- `P == N` on pass@5 (re-rank no better than first hit).
+### 4.2 The audit (v0.2 addendum)
 
-Together: **selection on LLM-generated patches is neither an
-amplifier nor a useful filter at this scale on this
-benchmark.** Two competing explanations remain:
+A post-exp003 audit (see
+[`paper/exp003_results.md` "Validity caveat"](https://github.com/nuerainc/project-forkling/blob/main/paper/exp003_results.md)
+and reproduced in `paper/hypothesis_v4r1.md` §0) found five
+problems with protocol 1 that prevent *any* of those nulls
+from settling the question. Concretely:
 
-- **A:** selection really doesn't help (replicates on a
-  harder benchmark).
-- **B:** FORKLAND-BENCH-001 was too easy (floor effect;
-  exp004 with the pre-registered calibration procedure
-  is the disambiguating experiment).
+- The endpoint (pass@k) is blind to selection: arm N and arm P
+  score identically under protocol 1, so the I vs P primary
+  cannot detect a filter.
+- The in-loop prompt is decoupled from the running source.
+- The re-ranker resolution is boolean, not a count.
+- The per-call seeds are not reproducible across processes.
+- The "paired" test was implemented unpaired.
 
-exp004 is in flight.
+The audit is a *finding*, not a regret. It is what the
+methodology surfaced on its first honest self-examination,
+and re-registering for it (`hypothesis_v4r1.md`) is what the
+discipline calls for. exp003b (protocol 2 on
+FORKLAND-BENCH-001) and exp004 (protocol 2 on the
+calibration-frozen FORKLAND-BENCH-002) replace §4.1's
+interpretation; they do not repeat it.
+
+**The paper does not draw a settled conclusion from §4.1.**
+The three protocol-1 nulls are evidence that the project
+*carried out* pre-registered experiments honestly; they are
+not, in retrospect, evidence about the filter-vs-amplifier
+mechanism. exp004's primary is the load-bearing test.
 
 ## 5. Related work (≈600 words)
 

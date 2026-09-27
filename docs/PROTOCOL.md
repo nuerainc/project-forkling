@@ -1,8 +1,15 @@
 # Forkling Protocol v0.1 (draft, explicitly provisional)
 
-**Status:** v0.1 draft. **Not a frozen spec.** Fields and procedures
-here are derived from how `forkling/*.py` actually runs *today*.
-v1.0 will lock these; until then, expect breaking changes.
+**Status:** v0.1 draft — describes the harness as of exp001–003
+(**protocol 1**, `forkling/experiment.py`).
+v4r1 (`paper/hypothesis_v4r1.md`) introduces **protocol 2**
+(`forkling/experiment2.py`) and ships a v0.2 protocol revision as an
+addendum at the end of this file. **Read v0.2 first** before
+running or extending a published result.
+
+**Not a frozen spec.** Fields and procedures here are derived from how
+`forkling/*.py` actually runs *today*. v1.0 will lock these; until
+then, expect breaking changes.
 
 This document defines a *lab-notebook* level spec for running a
 Forkling organism: setup, runtime, evaluation, reporting. The
@@ -291,3 +298,92 @@ The v1.0 spec will be cut once exp004's calibration data
 exists (day-of-completion), and at least one family member
 (Spoonica) has a 30-day reference run. Until then, treat
 this doc as a starting point, not a contract.
+
+---
+
+## 8. v0.2 addendum (2026-09-26): protocol 2 + validity fix
+
+**What's wrong with v0.1 (sections 1–7).** A post-exp003 audit
+([`paper/exp003_results.md` "Validity caveat"](https://github.com/nuerainc/project-forkling/blob/main/paper/exp003_results.md))
+found five real problems with protocol 1 (`forkling/experiment.py`):
+
+1. The primary endpoint (pass@k) is blind to selection: it asks
+   "did *any* of the K draws pass", which is the same
+   measurement for arms N and P under protocol 1, so the
+   primary comparison (I vs P) cannot detect a filter.
+2. The in-loop prompt always shows the original `buggy.py`,
+   not the running source; after the first accepted patch most
+   patches no longer apply, so the in-loop arms under-parse
+   (parse_ok drops from ~0.9 to ~0.3 after attempt 0).
+3. The post-hoc re-ranker was implemented as boolean
+   visible_pass, so partial fixes (visible 1/2, held-out 0)
+   tied with full passes (visible 2/2, held-out 0) — there
+   was no rank signal for partial fixes.
+4. Sub-seeds used `hash((arm, task.id))`, which Python
+   randomizes per process unless `PYTHONHASHSEED` is set, so
+   exp001–003 arm R coin flips are not reproducible from
+   the recorded seed.
+5. The "paired Mann–Whitney U" test described in
+   `hypothesis_v3.md` was implemented as an unpaired
+   rank-sum; for arms run on the same tasks, a paired test
+   is correct. Wilcoxon signed-rank is used in protocol 2.
+
+**Protocol 2 (`forkling/experiment2.py`)** fixes these. It is
+the harness used by `scripts/run_exp004.sh` and the
+pre-registered `paper/hypothesis_v4r1.md`. Concretely:
+
+- `python -m forkling experiment run --protocol 2 ...` selects
+  protocol 2; protocol 1 is kept unchanged for reproducing
+  exp001–003 (do not edit `experiment.py`).
+- The primary endpoint is **returned_pass**: did the patch
+  each arm actually returns pass the held-out tests? S=5
+  replicates per (task, arm), so per-task scores are
+  {0, 0.2, …, 1.0}.
+- Selection ranks by the visible-test count (a number in
+  [0, n_visible]); partial fixes rank above wrong-but-parseable
+  fixes.
+- In-loop prompts show the *current* source and a feedback
+  block from the previous attempt (patch tried, kept?, visible
+  failure output, truncated to 2,000 chars).
+- Sub-seeds come from `zlib.crc32(seed, arm, task, replicate)`,
+  and Ollama `options` carry `temperature=0.8` and the
+  derived per-call `seed` — both recorded in `config`.
+- Test is exact Wilcoxon signed-rank on per-task paired
+  differences with a 10,000-resample bootstrap CI; alpha =
+  0.05 for the primary.
+- A rule-based fallback completion (Ollama down) is recorded
+  as `infra` and counted toward the timeout-abort rule, **never
+  counted as model output**.
+
+**Harness self-test gate.** Before any exp004 run,
+`tests/test_experiment_power.py` must pass at the commit that
+produces the data. It runs protocol 2 against three scripted
+fake LLMs (filter model, amplifier model, null model) and
+requires the harness to detect each (filter, amplifier, no
+effect). If the self-test cannot tell them apart, the harness
+cannot answer the question and exp004 does not run.
+
+**No silent fallback in experiment mode.** If Ollama errors,
+the call is recorded as infra failure; if it ever exceeds the
+20%-timeout abort rule, the experiment aborts and reports as
+infra failure (v4r1 §8).
+
+**Bench gating.** `bench/validate_bench.py --strict` now fails
+any candidate whose `buggy.py` passes every held-out test (this
+caught the 012-wrap-text gap in the v4r1 smoke test). All 12
+FORKLAND-BENCH-002 candidates pass `--strict` at sign-off.
+
+**Where to look first.**
+
+- The pre-registration with the actual protocol-2 design:
+  [`paper/hypothesis_v4r1.md`](../paper/hypothesis_v4r1.md).
+- The post-exp003 audit it cited:
+  [`paper/exp003_results.md` "Validity caveat"](https://github.com/nuerainc/project-forkling/blob/main/paper/exp003_results.md).
+- The harness: `forkling/experiment2.py`.
+- The end-to-end runner: `scripts/run_exp004.sh`.
+- The harness self-test: `tests/test_experiment_power.py`.
+
+The end-to-end recipe lives at v4r1 §9 and is what
+`scripts/run_exp004.sh` runs. Do not run protocol 1 (the
+un-fixed harness) and try to interpret the result; the audit
+says it cannot answer the question.
