@@ -72,3 +72,44 @@ MIT. All code, data, and artifacts produced under this grant will be MIT-license
 - **forkling** — software co-author; contributions recorded in the capability ledger (`forkling verify`).
 
 — Jeremy Beebe & forkling
+
+---
+
+## Update (2026-09-27): rigor additions since this draft
+
+**Audit-first design, demonstrated.** The capability ledger is
+SHA-256-chained and verifiable, but the contribution this
+proposal claims is bigger than that: after exp003, a self-audit
+([`paper/hypothesis_v4r1.md` §0](../paper/hypothesis_v4r1.md))
+surfaced five real measurement-failure modes in the harness that
+the chain alone could not catch. We did not paper over them; we
+re-registered as `paper/hypothesis_v4r1.md` ("r1"), shipped a
+protocol-2 rewrite (`forkling/experiment2.py`), and added a
+harness self-test (`tests/test_experiment_power.py`, 14/14) that
+must pass at the commit that produces any new experiment data.
+This is audit-first methodology in action.
+
+**exp004 calibration outcome — honest reporting.** Per v4r1 §6,
+exp004 was **deferred, not nulled**, when calibration produced
+only 3 of 12 survivors below the pre-registered 6-survivor
+floor. The writeup ([`paper/exp004_results.md`](../paper/exp004_results.md))
+calls it a calibration failure and explicitly refuses to
+interpret it as a result on the mechanism question. That is
+**responsible AI** in the sense MOSS funds: don't manufacture a
+result the data doesn't support.
+
+**Submission checklist (before sending).**
+
+- [ ] Replace `<your-org>` placeholder in the public-repo URL
+      with `nuerainc`.
+- [ ] Update evidence-of-impact numbers (tests, capability
+      counts) to current values from `paper/paper.md`.
+- [ ] Add the `paper/hypothesis_v4r1.md` link to a
+      "Methodology" subsection so reviewers can read the
+      pre-registration + audit directly. The audit is the
+      strongest piece of evidence this proposal has, and
+      hiding it would weaken the responsible-AI claim.
+- [ ] Run `python -m forkling verify` once and paste the last
+      `chain ok: true` line into the audit-first section.
+- [ ] Confirm the Mozilla MOSS submission deadline for the
+      current cycle (not committed here).

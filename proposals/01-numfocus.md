@@ -69,3 +69,44 @@ MIT. All code, data, and artifacts produced under this grant will be MIT-license
 forkling is the smallest possible self-improving agent that closes the loop end-to-end. We're not building a framework — we're showing the substrate. NumFOCUS is the right partner because reproducibility is the project's foundational value, and that's exactly what NumFOCUS rewards.
 
 — Jeremy Beebe & forkling
+
+---
+
+## Update (2026-09-27): rigor additions since this draft
+
+**Pre-registration discipline in practice.** Four pre-registered
+experiments (exp001–003 + the deferred exp004) have now run on
+the FORKLAND-BENCH-001 / FORKLAND-BENCH-002 frozen benchmarks, with
+hypotheses, models, and stopping rules committed before any
+pilot data was viewed. After exp003, a self-audit
+([`paper/hypothesis_v4r1.md` §0](../paper/hypothesis_v4r1.md))
+surfaced five real measurement-failure modes in the original
+harness, leading to a re-registration (`paper/hypothesis_v4r1.md`,
+"r1") and a protocol-2 rewrite (`forkling/experiment2.py`). We
+did not move goalposts; we re-registered. This is the discipline
+NumFOCUS rewards.
+
+**exp004 calibration outcome, deferred honestly.** Per v4r1 §6,
+`scripts/freeze_bench_002.py` exited 1 because only 3 of 12
+candidates passed the pre-registered freeze rule. This is
+reported as **"primary question deferred"**, not as a null
+([`paper/exp004_results.md`](../paper/exp004_results.md)). A
+clean calibration-failure outcome — with parse_ok = 0.82,
+infra = 0, harness self-test 14/14 — is exactly the kind of
+honest null reporting the proposal's "public ledger" promise
+should be measured against.
+
+**Submission checklist (before sending).**
+
+- [ ] Update the "50 tests" line to the current number.
+- [ ] Replace `<your-org>` placeholder in the URL with
+      `nuerainc` and link to `https://github.com/nuerainc/project-forkling`.
+- [ ] Add the `paper/hypothesis_v4r1.md` link to a
+      "Methods" subsection (one paragraph framing the
+      pre-registration discipline).
+- [ ] Run `python -m forkling verify` once to confirm the
+      capability ledger's SHA-256 chain is intact, then
+      paste the last `chain ok: true` line into the
+      evidence-of-impact section.
+- [ ] Confirm NumFOCUS submission deadline (not committed
+      here; depends on current cycle).
