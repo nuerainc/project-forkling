@@ -1,10 +1,19 @@
-"""Combined-sample analysis for exp006 + exp007 (paper/methods_paper.md §4.2).
+"""Combined-sample analysis (registered in paper/hypothesis_v7.md §4.2
+and extended in paper/hypothesis_v8.md §9).
 
-The methods paper's registered secondary step: pool per-task arm
-scores across the two seeds (per-task mean of S replicates within
-each seed; seeds as paired blocks), run Wilcoxon signed-rank on the
-combined n=12 per-task paired differences. Reports each comparison
-with effect size, 95% bootstrap CI, and exact two-sided p-value.
+v7 behavior (default, backward-compatible):
+  Pool per-task arm scores across exp006 + exp007 (per-task mean of
+  S replicates within each seed; seeds as paired blocks), run
+  Wilcoxon signed-rank on the combined n=12 per-task paired
+  differences. Reports each comparison with effect size, 95%
+  bootstrap CI, and exact two-sided p-value.
+
+v8 behavior (generalized):
+  Accept any number of result files via sys.argv. Pool all
+  per-task arm scores; report per-cell summaries plus the
+  combined-sample test. If the optional --sign-test flag is
+  passed, also report a sign test on the direction of P - N
+  across cells.
 
 Honest reporting: zero diffs are dropped per Wilcoxon; ties get
 mid-ranks; the permutation null is exact for n <= 14, normal
@@ -14,7 +23,8 @@ from __future__ import annotations
 
 import json
 import statistics
-from itertools import combinations, product
+import sys
+from itertools import product
 from math import erfc, sqrt
 from pathlib import Path
 
@@ -103,29 +113,95 @@ def bootstrap_ci(diffs: list[float], n_resamples: int = 10000,
     return (lo, hi)
 
 
-def main() -> None:
+def sign_test(cell_diffs: list[float]) -> tuple[int, int, float]:
+    """Sign test across cells. Returns (n_pos, n_nonzero, p_two_sided)."""
+    nz = [d for d in cell_diffs if d != 0]
+    n = len(nz)
+    if n == 0:
+        return (0, 0, 1.0)
+    n_pos = sum(1 for d in nz if d > 0)
+    # exact binomial two-sided under H0: p(positive) = 0.5
+    from math import comb
+    cnt = 0
+    total = 0
+    for k in range(n + 1):
+        total += comb(n, k)
+        if k <= n_pos:
+            cnt += comb(n, k)
+    # two-sided: 2 * min(P(X <= n_pos), P(X >= n_pos))
+    p_le = cnt / total
+    p_ge = 1.0 - (sum(comb(n, k) for k in range(n_pos)) / total)
+    p = min(1.0, 2 * min(p_le, p_ge))
+    return (n_pos, n, p)
+
+
+def main(argv: list[str]) -> None:
     repo = Path(__file__).resolve().parent.parent
-    d6 = deltas(load_per_task(repo / "results" / "exp006.json"))
-    d7 = deltas(load_per_task(repo / "results" / "exp007.json"))
+    args = list(argv)
 
-    print("=== exp006 (seed 20261025) per-task diffs ===")
-    for tid, dd in sorted(d6.items()):
-        print(f"  {tid}: " + ", ".join(f"{k}={v:+.2f}" for k, v in dd.items()))
-    print()
-    print("=== exp007 (seed 20261030) per-task diffs ===")
-    for tid, dd in sorted(d7.items()):
-        print(f"  {tid}: " + ", ".join(f"{k}={v:+.2f}" for k, v in dd.items()))
+    # Optional --sign-test flag (consumed but no-op on the test itself).
+    sign_test_flag = False
+    if "--sign-test" in args:
+        sign_test_flag = True
+        args.remove("--sign-test")
+    # Optional --out <path> for JSON dump.
+    out_path = None
+    if "--out" in args:
+        i = args.index("--out")
+        out_path = Path(args[i + 1])
+        del args[i : i + 2]
 
-    all_tids = sorted(set(d6.keys()) | set(d7.keys()))
-    print()
-    print("=== combined n=12 Wilcoxon (per-task arm pooled across seeds) ===")
+    # v7 default: exp006 + exp007 if no positional args.
+    if not args:
+        args = ["results/exp006.json", "results/exp007.json"]
+
+    cells = []
+    for path_str in args:
+        full = Path(path_str)
+        if not full.is_absolute():
+            full = repo / full
+        if not full.exists():
+            print(f"[warn] {full} not found; skipping")
+            continue
+        per_task = load_per_task(str(full))
+        cells.append((path_str, deltas(per_task)))
+
+    if not cells:
+        print("[error] no result files found")
+        return
+
+    # Per-cell summary.
+    for label, dd in cells:
+        print(f"=== {label} per-task diffs ===")
+        for tid, d in sorted(dd.items()):
+            print(f"  {tid}: " + ", ".join(f"{k}={v:+.2f}" for k, v in d.items()))
+        print()
+
+    all_tids = sorted(set().union(*(set(dd.keys()) for _, dd in cells)))
+    n_datapoints = sum(len(dd) for _, dd in cells)
+    print(
+        f"=== combined n={n_datapoints} Wilcoxon "
+        f"({len(cells)} cell(s), per-task arm pooled) ==="
+    )
+    out: dict = {"cells": [], "comparisons": {}, "n_datapoints": n_datapoints}
+    for label, dd in cells:
+        out["cells"].append(
+            {
+                "label": label,
+                "n_tasks": len(dd),
+            }
+        )
     for cmp in ("P-N", "I-P", "I-R", "I-N"):
         combined = []
-        for tid in all_tids:
-            if tid in d6:
-                combined.append(d6[tid][cmp])
-            if tid in d7:
-                combined.append(d7[tid][cmp])
+        per_cell_means = []
+        for _, dd in cells:
+            for tid, d in dd.items():
+                combined.append(d[cmp])
+            # one per-cell summary number for the sign test
+            per_cell_diffs = [d[cmp] for d in dd.values() if d[cmp] != 0]
+            per_cell_means.append(
+                sum(per_cell_diffs) / len(per_cell_diffs) if per_cell_diffs else 0.0
+            )
         w, n, mean, p = wilcoxon_paired(combined)
         nz = [v for v in combined if v != 0]
         nz_mean = sum(nz) / len(nz) if nz else 0.0
@@ -133,11 +209,36 @@ def main() -> None:
             bootstrap_ci([v for v in combined if v != 0]) if n > 0 else (0.0, 0.0)
         )
         print(
-            f"  {cmp}: combined={[round(d, 2) for d in combined]}, "
-            f"n_nz={n}, W+={w:.1f}, mean(non-zero)={nz_mean:+.3f}, "
+            f"  {cmp}: combined_n={n_datapoints}, n_nz={n}, W+={w:.1f}, "
+            f"mean(non-zero)={nz_mean:+.3f}, "
             f"CI95=[{nz_lo:+.3f}, {nz_hi:+.3f}], p={p:.4f}"
         )
+        out["comparisons"][cmp] = {
+            "combined_n": n_datapoints,
+            "n_nonzero": n,
+            "W_plus": w,
+            "mean_non_zero": nz_mean,
+            "ci95_lo": nz_lo,
+            "ci95_hi": nz_hi,
+            "p": p,
+            "per_cell_means": per_cell_means,
+        }
+        if sign_test_flag and cmp == "P-N":
+            n_pos, n_cells_nz, p_sign = sign_test(per_cell_means)
+            print(
+                f"    sign test (across {n_cells_nz} non-zero cells): "
+                f"{n_pos}/{n_cells_nz} positive, p={p_sign:.4f}"
+            )
+            out["comparisons"][cmp]["sign_test"] = {
+                "n_positive": n_pos,
+                "n_nonzero_cells": n_cells_nz,
+                "p": p_sign,
+            }
+
+    if out_path is not None:
+        out_path.write_text(json.dumps(out, indent=2), encoding="utf-8")
+        print(f"\nwrote {out_path}")
 
 
 if __name__ == "__main__":
-    main()
+    main(sys.argv[1:])
