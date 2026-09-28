@@ -781,12 +781,19 @@ project's foundational value, alongside pre-registration.
   partial-offloads and slows 5–6× (per `MODEL_DECISION.md`).
   The hardware-blocked model-swap fallback in v6 §6
   stands.
-- A benchmark-change replication (FORFLAND-BENCH-001 under
-  protocol 2). This is the `exp003b` slot in
-  `scripts/run_exp004.sh`; it would test whether the
-  Protocol-1 → Protocol-2 redesign that landed
-  exp006/exp007 also explains the difference between
-  Protocol-1 null and Protocol-2 filter-only.
+- A benchmark-change replication (FORKLAND-BENCH-001 under
+  protocol 2). **Now closed as exp003b** —
+  `paper/exp003b_results.md`. Within-benchmark re-run of
+  exp003 with Protocol 2 returned "Neither" at α=0.05 on
+  FORKLAND-BENCH-001: arm N pass@5 = 0.84 confirms the
+  floor effect the pre-reg anticipated; the strict
+  cutoffs place exp003b in the "Neither" row of the
+  interpretation table. Direction matches exp006 +
+  exp007 (I < P numerically; P > N numerically with
+  CI excluding 0 on the 4 non-tied tasks) but lacks
+  statistical power at n=10 with this benchmark's
+  floor. **The audit's Protocol-2 fixes don't override
+  the floor on this benchmark**, exactly as registered.
 - Long-horizon forkling evolution data (≥30 days). The
   experiment lineage has ~10 days of evolution data
   (`paper/datasets/forkling-dataset-*.zip`); the methods
@@ -795,7 +802,7 @@ project's foundational value, alongside pre-registration.
 - Multi-environment runs. Single-machine validation only.
 
 Future pre-registered attempts (v8, v9, ...) can address
-each of these. The framework — pre-registration, calibration,
+the remaining three. The framework — pre-registration, calibration,
 self-audit, combined-sample analysis, deferred reporting —
 is the durable contribution; the specific closed case here
 is one demonstration of it.
