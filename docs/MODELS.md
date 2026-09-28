@@ -3,6 +3,10 @@
 > How to pick a local Ollama model for `forkling evolve`, and what
 > tradeoffs each choice implies. Read this before pulling a model.
 
+**For inference-backend choice (Ollama vs llama.cpp server vs
+koboldcpp), see [`docs/BACKENDS.md`](BACKENDS.md).** This file is
+about *which model*; BACKENDS.md is about *which server runs it*.
+
 ## TL;DR
 
 **Default to `qwen3:4b`.** It's the sweet spot — coherent patches at
