@@ -304,3 +304,115 @@ def test_real_grader_end_to_end_on_bench_001():
     n_run = E2.run_arm(Noop(), task, "N", k=2, replicate=0, seed=1,
                        temperature=0.8)
     assert not n_run.returned_pass and not n_run.attempts[0].parse_ok
+
+
+# ----- v10a multi-round (paper/hypothesis_v10.md v10a.3) --------------------
+
+def test_v10a_multi_round_runs_T_rounds_of_K_attempts_each(fake_tasks):
+    """I-multi with T=3, k_per_round=4 must produce <= 12 attempts and
+    exactly 3 RoundSummary records."""
+    seq = iter(["CORRECT"] * 12)
+    llm = ScriptedLLM(lambda prompt, rng: next(seq))
+    run_ = E2.run_arm(llm, fake_tasks[0], "I-multi", k=10, replicate=0,
+                      seed=1, temperature=0.8, grader=fake_grader,
+                      multi_round=3, k_per_round=4)
+    assert run_.rounds == 3
+    assert len(run_.round_summaries) == 3
+    # Round 1 finds CORRECT and the loop short-circuits, so total calls
+    # should be <= 4 (likely 1 since first attempt is CORRECT and
+    # cur_score >= total triggers break).
+    assert run_.calls <= 12
+    assert run_.cumulative_pass is True
+
+
+def test_v10a_multi_round_carries_state_between_rounds(fake_tasks):
+    """Round 2's prompt must show round 1's accepted source (M2 fix).
+
+    Model produces PARTIAL on attempt 0 of round 1, then WRONG on
+    attempt 0 of round 2 — the I arm within round 2 should see the
+    PARTIAL state in its prompt, not the original WRONG."""
+    responses = iter(["PARTIAL", "WRONG", "WRONG", "WRONG",
+                      "WRONG", "WRONG", "WRONG", "WRONG",
+                      "WRONG", "WRONG", "WRONG", "WRONG"])
+    llm = ScriptedLLM(lambda prompt, rng: next(responses))
+    run_ = E2.run_arm(llm, fake_tasks[0], "I-multi", k=10, replicate=0,
+                      seed=1, temperature=0.8, grader=fake_grader,
+                      multi_round=2, k_per_round=5)
+    # Find the first prompt of round 2 (attempt_idx == 5).
+    round2_first = next(p for i, p in enumerate(llm.prompts)
+                        if i == 5)
+    # The prompt must contain the running source (PARTIAL state) from
+    # round 1, not the original buggy.py (WRONG).
+    assert "STATE = 'PARTIAL'" in round2_first.split("Visible tests")[0]
+
+
+def test_v10a_multi_round_feedback_resets_between_rounds(fake_tasks):
+    """Round 2's first prompt must NOT contain feedback from round 1's
+    last attempt (feedback resets at round boundary)."""
+    # Long sequence: round 1 produces attempts, then round 2 starts.
+    responses = iter(["PARTIAL", "PARTIAL", "PARTIAL", "PARTIAL", "PARTIAL",
+                      "WRONG", "WRONG", "WRONG", "WRONG", "WRONG"])
+    llm = ScriptedLLM(lambda prompt, rng: next(responses))
+    run_ = E2.run_arm(llm, fake_tasks[0], "I-multi", k=10, replicate=0,
+                      seed=1, temperature=0.8, grader=fake_grader,
+                      multi_round=2, k_per_round=5)
+    # Round 2 first prompt is at index 5.
+    round2_first = llm.prompts[5]
+    # Feedback block must not be present in round 2's first prompt.
+    assert "Feedback on your previous attempt" not in round2_first
+
+
+def test_v10a_multi_round_m2_fallback_reverts_on_invalid_patch(fake_tasks, monkeypatch):
+    """If a round's accepted patch produces unparseable source, the
+    harness reverts to last_good_state and records applied=False."""
+    # Round 1: PARTIAL (parseable, kept) -> round 2: garbage that
+    # would break compile if applied.
+    responses = iter(["PARTIAL", "BREAK_THINGS"])
+    # Override the validity check: PARTIAL passes, BREAK_THINGS fails.
+    real_check = E2._is_valid_python
+
+    def selective_check(source):
+        if "BREAK_THINGS" in source:
+            return False
+        return real_check(source)
+
+    monkeypatch.setattr(E2, "_is_valid_python", selective_check)
+    llm = ScriptedLLM(lambda prompt, rng: next(responses))
+    run_ = E2.run_arm(llm, fake_tasks[0], "I-multi", k=10, replicate=0,
+                      seed=1, temperature=0.8, grader=fake_grader,
+                      multi_round=2, k_per_round=1)
+    # Round 2 had an accepted patch but the validity check rejected it,
+    # so applied=False.
+    assert run_.round_summaries[1].applied is False
+    # The kept attempt is reset since the patch didn't actually apply.
+    if run_.round_summaries[1].best_attempt_idx >= 0:
+        assert run_.attempts[
+            run_.round_summaries[1].best_attempt_idx].kept is False
+
+
+def test_v10a_multi_round_total_calls_cap_at_T_times_K(fake_tasks):
+    """Multi-round must not exceed T*K attempts (early-stop ok; over is not)."""
+    seq = iter(["WRONG"] * 100)
+    llm = ScriptedLLM(lambda prompt, rng: next(seq))
+    run_ = E2.run_arm(llm, fake_tasks[0], "I-multi", k=10, replicate=0,
+                      seed=1, temperature=0.8, grader=fake_grader,
+                      multi_round=5, k_per_round=4)
+    # 5 rounds × 4 = 20 max. WRONG never improves cur_score, so loop
+    # runs all attempts.
+    assert run_.calls <= 5 * 4
+
+
+def test_v10a_round_summary_records_match_attempts(fake_tasks):
+    """Round summaries' parse_ok_count and kept_count must reflect the
+    actual attempts in those round_idx ranges."""
+    seq = iter(["PARTIAL"] * 20)
+    llm = ScriptedLLM(lambda prompt, rng: next(seq))
+    run_ = E2.run_arm(llm, fake_tasks[0], "I-multi", k=10, replicate=0,
+                      seed=1, temperature=0.8, grader=fake_grader,
+                      multi_round=2, k_per_round=10)
+    for r in run_.round_summaries:
+        round_attempts = [a for a in run_.attempts
+                          if r.round_idx * 10 <= a.attempt_idx
+                          < (r.round_idx + 1) * 10]
+        assert r.parse_ok_count == sum(1 for a in round_attempts if a.parse_ok)
+        assert r.kept_count == sum(1 for a in round_attempts if a.kept)

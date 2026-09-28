@@ -657,6 +657,15 @@ def add_protocol_args(parser: argparse.ArgumentParser) -> None:
                         help="Protocol 2 only: replicates per (task, arm).")
     parser.add_argument("--temperature", type=float, default=0.8,
                         help="Protocol 2 only: pinned Ollama sampling temperature.")
+    # v10a additions (paper/hypothesis_v10.md). These default to single-round
+    # mode so existing usage is unchanged. --multi-round and --k-per-round
+    # apply only when the I-multi arm is in --arms.
+    parser.add_argument("--multi-round", type=int, default=1,
+                        help="Protocol 2 + I-multi only: number of rounds "
+                             "(default 1 = single-round mode, ignored).")
+    parser.add_argument("--k-per-round", type=int, default=None,
+                        help="Protocol 2 + I-multi only: LLM calls per round. "
+                             "If unset, falls back to --k. Ignored for non-I-multi arms.")
 
 
 def main(argv: list[str] | None = None) -> int:

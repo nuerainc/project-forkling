@@ -49,6 +49,13 @@ from .experiment import PROMPT_TEMPLATE, extract_patch
 
 PROTOCOL = 2
 ARMS = ("N", "P", "I", "R")
+# v10a additions (paper/hypothesis_v10.md): cumulative-improvement
+# sub-study. I-multi is a new arm with multi-round in-loop semantics;
+# the K-suffixed aliases exist for clarity in v10a's run-spec and
+# dispatch to the existing N/P/I logic with k=50 (or whatever k is
+# supplied via --k).
+ARMS_V10 = ("I-multi", "I-K50", "P-K50", "N-K50")
+ARMS = ARMS + ARMS_V10
 FEEDBACK_MAX_CHARS = 2000
 DEFAULT_TEMPERATURE = 0.8
 
@@ -161,6 +168,26 @@ class Attempt:
 
 
 @dataclasses.dataclass
+class RoundSummary:
+    """Per-round summary for multi-round arms (paper/hypothesis_v10.md v10a).
+
+    For each round in an I-multi run, captures the round's calls, the
+    index of the best patch within the round's attempts (-1 if no parseable
+    patch was produced), whether that patch was applied to source, and
+    whether the source after the round satisfies the held-out tests.
+    """
+    round_idx: int
+    round_calls: int
+    best_attempt_idx: int
+    best_visible_passed: int
+    best_held_out_pass: bool
+    applied: bool
+    cumulative_pass_after_round: bool
+    parse_ok_count: int
+    kept_count: int
+
+
+@dataclasses.dataclass
 class ArmRun:
     task_id: str
     arm: str
@@ -169,6 +196,11 @@ class ArmRun:
     returned_visible_passed: int
     calls: int
     attempts: list[Attempt]
+    # v10a additions (None / 1 for non-multi-round arms; backward-compatible
+    # via _run_from_json defaulting to None/1 for old checkpoint lines).
+    cumulative_pass: bool | None = None
+    rounds: int = 1
+    round_summaries: list[RoundSummary] | None = None
 
 
 def _attempt(llm: LLMLike, grader: Grader, task: BenchTask, arm: str,
@@ -208,12 +240,160 @@ def _attempt(llm: LLMLike, grader: Grader, task: BenchTask, arm: str,
         new_source, g.visible_output
 
 
+def _is_valid_python(source: str) -> bool:
+    """M2-fallback validity check (paper/hypothesis_v10.md v10a.4).
+
+    After applying a patch between rounds, the next round's prompt is
+    built from the running source. If the patch broke the source (e.g.,
+    deleted the function being edited), the source won't compile and the
+    harness falls back to the last-good state.
+    """
+    try:
+        compile(source, "buggy.py", "exec")
+        return True
+    except SyntaxError:
+        return False
+
+
+def _run_arm_multi_round(llm: LLMLike, task: BenchTask, arm: str,
+                         rounds: int, k_per_round: int, replicate: int,
+                         seed: int, temperature: float,
+                         grader: Grader = grade) -> ArmRun:
+    """Multi-round in-loop arm for v10a (paper/hypothesis_v10.md v10a.3).
+
+    Runs ``rounds`` rounds of ``k_per_round`` attempts each. The best
+    parseable patch from each round is applied to the source before the
+    next round begins (M2 fix: the next round's prompt shows the running
+    source, not the original buggy.py). If the applied patch produces
+    source that no longer compiles, the harness reverts to the
+    last-good-state and records ``applied: false`` for that round.
+
+    Within a round, attempts share the same state and feedback flows
+    attempt-to-attempt (existing protocol-2 in-loop semantics). Across
+    rounds, state is committed at round boundaries; feedback resets to
+    empty (the next round sees the new source without prior-round
+    commentary).
+    """
+    if arm != "I-multi":
+        raise ValueError(
+            f"_run_arm_multi_round called with arm={arm!r}; expected 'I-multi'")
+    if rounds < 1:
+        raise ValueError(f"rounds must be >= 1; got {rounds}")
+    if k_per_round < 1:
+        raise ValueError(f"k_per_round must be >= 1; got {k_per_round}")
+
+    buggy = (task.abs_path() / "buggy.py").read_text(encoding="utf-8")
+    coin = random.Random(stable_seed("coin", seed, arm, task.id, replicate))
+
+    def opts(idx: int) -> dict:
+        return {"temperature": temperature,
+                "seed": call_seed(seed, task.id, replicate, idx)}
+
+    all_attempts: list[Attempt] = []
+    round_summaries: list[RoundSummary] = []
+    current = buggy
+    last_good_state = buggy
+
+    for r in range(rounds):
+        g0 = grader(task, current)
+        cur_score, cur_held = g0.visible_passed, g0.held_out_pass
+        cur_total = g0.visible_total
+        feedback = ""
+        last_kept: Attempt | None = None
+
+        for i in range(k_per_round):
+            if cur_total and cur_score >= cur_total:
+                # All visible tests pass; nothing left to select on within
+                # this round. Don't waste LLM calls.
+                break
+            prompt = build_prompt(task, current, feedback)
+            call_idx = r * k_per_round + i
+            rec, src, out = _attempt(llm, grader, task, arm, replicate,
+                                     call_idx, current, prompt, opts(call_idx))
+            keep = (rec.parse_ok and not rec.infra
+                    and rec.visible_passed > cur_score)
+            if keep:
+                rec.kept = True
+                current = src
+                cur_score, cur_held = rec.visible_passed, rec.held_out_pass
+                last_kept = rec
+            all_attempts.append(rec)
+            feedback = describe_attempt(rec, keep, out)
+
+        # Round-end: validate the running source. M2 fix.
+        applied = False
+        if last_kept is not None:
+            if _is_valid_python(current):
+                applied = True
+                last_good_state = current
+            else:
+                # Patch broke the source. Revert; record the round as
+                # not-applied. The attempt's `kept` flag is also reset
+                # so per-attempt accounting reflects what actually
+                # changed the running state.
+                current = last_good_state
+                last_kept.kept = False
+
+        # Re-grade after the round (post-apply or post-revert) so
+        # cumulative_pass_after_round reflects the actual running state.
+        g_post = grader(task, current)
+        cum_pass = g_post.held_out_pass
+
+        round_summaries.append(RoundSummary(
+            round_idx=r,
+            round_calls=sum(1 for a in all_attempts
+                            if a.replicate == replicate and a.attempt_idx
+                            >= r * k_per_round
+                            and a.attempt_idx < (r + 1) * k_per_round),
+            best_attempt_idx=(
+                all_attempts.index(last_kept) if last_kept is not None else -1),
+            best_visible_passed=cur_score,
+            best_held_out_pass=(last_kept.held_out_pass
+                                if last_kept is not None else False),
+            applied=applied,
+            cumulative_pass_after_round=cum_pass,
+            parse_ok_count=sum(
+                1 for a in all_attempts
+                if a.attempt_idx >= r * k_per_round
+                and a.attempt_idx < (r + 1) * k_per_round
+                and a.parse_ok),
+            kept_count=sum(
+                1 for a in all_attempts
+                if a.attempt_idx >= r * k_per_round
+                and a.attempt_idx < (r + 1) * k_per_round
+                and a.kept),
+        ))
+
+    g_final = grader(task, current)
+    return ArmRun(
+        task_id=task.id, arm=arm, replicate=replicate,
+        returned_pass=g_final.held_out_pass,
+        returned_visible_passed=g_final.visible_passed,
+        calls=len(all_attempts),
+        attempts=all_attempts,
+        cumulative_pass=g_final.held_out_pass,
+        rounds=rounds,
+        round_summaries=round_summaries,
+    )
+
+
 def run_arm(llm: LLMLike, task: BenchTask, arm: str, k: int, replicate: int,
             seed: int, temperature: float,
-            grader: Grader = grade) -> ArmRun:
-    """Run one (task, arm, replicate) under protocol 2."""
+            grader: Grader = grade,
+            multi_round: int = 1,
+            k_per_round: int | None = None) -> ArmRun:
+    """Run one (task, arm, replicate) under protocol 2.
+
+    ``multi_round`` and ``k_per_round`` apply only to the I-multi arm
+    (v10a). For all other arms they are ignored; K is the total-call
+    budget per (task, arm, replicate) via the ``k`` parameter.
+    """
     if arm not in ARMS:
         raise ValueError(f"unknown protocol-2 arm {arm!r}; expected one of {ARMS}")
+    if arm == "I-multi":
+        kpr = k_per_round if k_per_round is not None else k
+        return _run_arm_multi_round(llm, task, arm, multi_round, kpr,
+                                   replicate, seed, temperature, grader)
     buggy = (task.abs_path() / "buggy.py").read_text(encoding="utf-8")
     coin = random.Random(stable_seed("coin", seed, arm, task.id, replicate))
 
@@ -398,7 +578,9 @@ def run_experiment(tasks: list[BenchTask], llm: LLMLike, arms: tuple[str, ...],
                    grader: Grader = grade,
                    checkpoint_path: Path | None = None,
                    resume_from: Path | None = None,
-                   progress: Callable[[str], None] | None = None
+                   progress: Callable[[str], None] | None = None,
+                   multi_round: int = 1,
+                   k_per_round: int | None = None,
                    ) -> dict[str, Any]:
     """Run every (task, arm, replicate) and return the result dict."""
     done: dict[tuple[str, str, int], ArmRun] = {}
@@ -421,7 +603,9 @@ def run_experiment(tasks: list[BenchTask], llm: LLMLike, arms: tuple[str, ...],
                         runs.append(done[key])
                         continue
                     run = run_arm(llm, task, arm, k, rep, seed, temperature,
-                                  grader)
+                                  grader,
+                                  multi_round=multi_round,
+                                  k_per_round=k_per_round)
                     runs.append(run)
                     if ckpt is not None:
                         ckpt.write(json.dumps(dataclasses.asdict(run)) + "\n")
@@ -440,7 +624,14 @@ def run_experiment(tasks: list[BenchTask], llm: LLMLike, arms: tuple[str, ...],
 
 def _run_from_json(obj: dict) -> ArmRun:
     attempts = [Attempt(**a) for a in obj.pop("attempts")]
-    return ArmRun(**obj, attempts=attempts)
+    raw_rounds = obj.pop("round_summaries", None)
+    round_summaries = (
+        [RoundSummary(**r) for r in raw_rounds] if raw_rounds else None
+    )
+    return ArmRun(
+        **obj, attempts=attempts,
+        round_summaries=round_summaries,
+    )
 
 
 def cmd_run(args) -> int:
@@ -456,21 +647,27 @@ def cmd_run(args) -> int:
     llm = LLM(url=args.ollama_url, model=args.model, timeout=args.timeout)
     out_path = Path(args.out)
     out_path.parent.mkdir(parents=True, exist_ok=True)
+    multi_round = getattr(args, "multi_round", 1) or 1
+    k_per_round = getattr(args, "k_per_round", None)
     print(f"[exp] protocol 2: {len(tasks)} tasks, arms={','.join(arms)}, "
           f"k={args.k}, replicates={args.replicates}, model={args.model}, "
-          f"temperature={args.temperature}, seed={args.seed}")
+          f"temperature={args.temperature}, seed={args.seed}, "
+          f"multi_round={multi_round}, k_per_round={k_per_round}")
     result = run_experiment(
         tasks, llm, arms, k=args.k, replicates=args.replicates,
         seed=args.seed, temperature=args.temperature,
         checkpoint_path=Path(args.checkpoint) if args.checkpoint else None,
         resume_from=Path(args.resume_from) if args.resume_from else None,
         progress=lambda msg: print(f"[exp] {msg}", flush=True),
+        multi_round=multi_round,
+        k_per_round=k_per_round,
     )
     result = {"config": {
         "protocol": PROTOCOL, "bench": args.bench, "model": args.model,
         "ollama_url": args.ollama_url, "k_per_task": args.k,
         "replicates": args.replicates, "seed": args.seed,
         "temperature": args.temperature, "arms": list(arms),
+        "multi_round": multi_round, "k_per_round": k_per_round,
         "harness_commit": _git_head(),
     }, **result}
     out_path.write_text(json.dumps(result, indent=2), encoding="utf-8")
