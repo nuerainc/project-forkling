@@ -1,0 +1,57 @@
+{
+  "_comment": "Serial experiment queue for the 4 GB single-GPU box. Stages MUST NOT run concurrently: one Ollama model is resident and two protocol-2 runs contend for VRAM and time out. Queue 001: finish the exp009 temperature sweep, then run the v10b calibration gate, then STOP for the freeze-rule decision. v10b main and v10a main are deliberately NOT in this manifest - v10b main requires the calibration freeze rule to be applied with real numbers first, and v10a is 2.5 h so it should be an explicit choice.",
+  "stages": [
+    {
+      "name": "wait-exp009b-lowT",
+      "type": "wait",
+      "marker": "results/exp009_seed20261105_temp0.5.json",
+      "timeout_s": 14400
+    },
+    {
+      "name": "exp009b-highT",
+      "type": "run",
+      "marker": "results/exp009_seed20261106_temp1.0.json",
+      "ckpt": "results/exp009_seed20261106_temp1.0.ckpt.jsonl",
+      "log": "results/exp009b-highT.log",
+      "heartbeat": "results/exp009b-highT.heartbeat",
+      "env": ["PYTHONHASHSEED=20261106"],
+      "cmd": [
+        "python", "-m", "forkling", "experiment", "run",
+        "--protocol", "2",
+        "--bench", "bench/FORKLAND-BENCH-002.jsonl",
+        "--arms", "N,P,I,R",
+        "--k", "10",
+        "--replicates", "5",
+        "--temperature", "1.0",
+        "--seed", "20261106",
+        "--model", "qwen2.5-coder:3b",
+        "--ollama-url", "http://127.0.0.1:11434",
+        "--out", "results/exp009_seed20261106_temp1.0.json",
+        "--checkpoint", "results/exp009_seed20261106_temp1.0.ckpt.jsonl"
+      ]
+    },
+    {
+      "name": "v10b-calibration",
+      "type": "run",
+      "marker": "results/exp010b_calib.json",
+      "ckpt": "results/exp010b_calib.ckpt.jsonl",
+      "log": "results/exp010b-calib.log",
+      "heartbeat": "results/exp010b-calib.heartbeat",
+      "env": ["PYTHONHASHSEED=20261108"],
+      "cmd": [
+        "python", "-m", "forkling", "experiment", "run",
+        "--protocol", "2",
+        "--bench", "bench/benchmark_v10b_proof.jsonl",
+        "--arms", "N",
+        "--k", "20",
+        "--replicates", "1",
+        "--temperature", "0.8",
+        "--seed", "20261108",
+        "--model", "qwen2.5-coder:3b",
+        "--ollama-url", "http://127.0.0.1:11434",
+        "--out", "results/exp010b_calib.json",
+        "--checkpoint", "results/exp010b_calib.ckpt.jsonl"
+      ]
+    }
+  ]
+}
