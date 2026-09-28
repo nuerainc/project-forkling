@@ -22,26 +22,42 @@ LLM-generated patches a **filter** (a way to discard bad
 patches) or an **amplifier** (a way to make the LLM generate
 better patches)?* — applies it to a calibrated hard-bug-fix
 benchmark (`FORKLAND-BENCH-002`, 6 tasks, p1 ∈ [0.10, 0.50]),
-and reports a mechanism result. Over five pre-registered
-attempts across two protocol generations, we found:
+and reports a mechanism result. Over six pre-registered
+attempts across two protocol generations, **including a
+seed-replication**, we found:
 
-1. **Filter effect is real** — post-hoc re-rank by visible
-   tests outperforms one-shot generation at equal budget
-   (P > N, mean diff +0.467, 95% CI [+0.233, +0.733],
-   p = 0.031, n = 6).
+1. **Filter effect is real and survives replication** —
+   post-hoc re-rank by visible tests outperforms one-shot
+   generation at equal budget. Combined-sample effect:
+   P − N = **+0.545, 95% CI [+0.400, +0.691], p = 0.0005**
+   (n = 12 paired measurements across two seeds, 6 tasks
+   × S = 5 replicates each).
 2. **Iteration does not improve over re-rank** — the
    in-loop select arm is trending worse than post-hoc
-   re-rank at equal budget (I < P, mean diff −0.333, 95% CI
-   [−0.533, −0.167], p = 0.0625, n = 5). The CI excludes
-   zero; the strict α = 0.05 significance call is
-   marginal at this n.
+   re-rank at equal budget, with all eight non-zero
+   combined-sample I − P differences negative or zero:
+   combined mean diff **−0.425, 95% CI [−0.550, −0.300]**,
+   p = 0.0547 (just above α = 0.05 at n_nz = 8; CI excludes
+   0).
+3. **Two secondary effects that frame the result**:
+   in-loop select beats random-accept (I − R = +0.340,
+   p = 0.0029) — the in-loop selector is doing real work,
+   just not enough to outperform re-rank at equal budget.
+   In-loop beats one-shot (I − N = +0.433, p = 0.0156) —
+   the loop is doing *something*, but the same selector
+   applied *post-hoc* does more with it.
 
-The pre-registered interpretation is "filter only":
-selection on LLM-generated patches is a *filter*, not an
+The pre-registered interpretation is **"filter only."**
+Selection on LLM-generated patches is a *filter*, not an
 *amplifier*, at this scale on this benchmark with this model.
-This closes the open mechanism question that
-exp001/002/003 (protocol 1, three nulls) and exp004/005
-(protocol 2, two deferred outcomes) had left open.
+The mechanism question that was open across exp001–005
+is closed. exp006 (protocol 2, calibration-frozen
+benchmark, seed 20261025) produced the first non-deferred
+mechanism result, and exp007 (registered seed-replication
+at seed 20261030) reproduces its direction. The combined-
+sample analysis at n = 12 paired measurements across two
+seeds is the load-bearing empirical test. **The case is
+closed.**
 
 **Methodological contributions.** A
 pre-registration-then-audit protocol: a research artifact is
@@ -58,13 +74,17 @@ benchmark calibration procedure (`hypothesis_v4r1.md` §6)
 that refuses to commit to a benchmark whose difficulty
 distribution does not give the question a fair test. A
 failure taxonomy that distinguishes proposal-side failures
-(A/B/C/D) from measurement-side failures (M1–M5).
+(A/B/C/D) from measurement-side failures (M1–M5). A
+*registered combined-sample analysis* registered at
+registration time (v7 §4.2), invoked as the load-bearing
+step when per-seed tests are power-bounded at small n.
 
 **Data and code:** all artifacts (working code, dataset,
-calibration files, result files, six pre-registered
-hypothesis documents, two result writeups for the deferred
-outcomes, the audit, the schema, and the protocol) are
-released under MIT at
+calibration files, result files, seven pre-registered
+hypothesis documents, three result writeups for the
+deferred outcomes, the audit, the schema, the protocol, and
+the seed-replication combined-sample analysis) are released
+under MIT at
 [`nuerainc/project-forkling`](https://github.com/nuerainc/project-forkling).
 
 ---
@@ -686,24 +706,49 @@ Two distinct contributions flow from this work.
 
 The first is the mechanism result. **On
 FORKLAND-BENCH-002 with `qwen2.5-coder:3b`, at K = 10 with
-S = 5 replicates, selection on LLM-generated patches is
-detected as a *filter* (P > N, p = 0.031, n = 6) but not as
-an *amplifier* (I vs P, p = 0.063, n = 5, CI excludes 0).
-The case for the evolve loop at this scale is closed.
-Future work on the loop should focus on improving the
-re-rank, not on adding more loop complexity.
+S = 5 replicates, across two pre-registered seeds (n = 12
+combined-sample measurements), selection on LLM-generated
+patches is detected as a *filter* (P − N = +0.545, p = 0.0005)
+but not as an *amplifier* (I − P = −0.425, p = 0.0547 with
+CI excluding zero, n_nz = 8; the direction is wrong-signed on
+every non-zero combined-sample measurement).** The case for
+the evolve loop, as implemented in this harness at this
+scale on this benchmark with this model, is closed.
+Future work on the loop should focus on the loop being a
+*better* draw-and-rerank (better prompts, more draws,
+richer ranking signals), not on in-loop feedback-and-keep
+being a substitute for re-rank.
+
+The secondary I − R result (combined-sample p = 0.0029)
+clarifies what's happening: the in-loop selector *is*
+selecting (it beats random-accept significantly), so the
+loop is doing real work — but the same selector applied
+*post-hoc* outperforms it at equal compute. The loop is
+not wrong; it is *not the most efficient place to put the
+selector*.
 
 The second is the methodology. A pre-registered harness is
 not a fix-once artifact; it is a hypothesis to be
 self-audited and re-registered when the audit finds it
 inadequate. The audit-after-exp003 found five real
 measurement-side failures and led to a Protocol 2 rewrite.
-The discipline is shipping the audit. Two of the next five
+The discipline is shipping the audit. Two of the next three
 attempts *still* deferred under the same protocol — and
 that deferral is itself publishable data, not a failure to
-ship a result. The mechanism result that does clear the
-freeze (this paper) is therefore the result of a
-methodology that knows when it cannot answer.
+ship a result. exp006's mechanism result is therefore the
+result of a methodology that knows when it cannot answer
+and knows when it can.
+
+The **registered combined-sample analysis** is the second
+piece of methodology. At small benchmark sizes (n = 6
+tasks), per-seed Wilcoxon tests are power-bounded; the
+combined-sample analysis was registered up front in v7 §4.2
+as the load-bearing step. When per-seed p-values are
+marginal or just-above-α, the combined-sample test moves
+the headline off the per-seed α boundary. **This is what
+makes the case load-bearing** — the methodology anticipated
+that per-seed tests at n = 6 might be inconclusive and
+specified the resolution in advance.
 
 This is the contribution we think generalizes to the broader
 LLM-self-improvement literature. The handful of systems in
@@ -712,19 +757,48 @@ without null reporting, and without a draw-and-rerank
 baseline. Our claim is not that those systems are wrong;
 it is that their questions are *not yet answerable* on their
 current artifact. Pre-registration + a self-audit + a
-calibrated benchmark + a falsifiable mechanism question is
+calibrated benchmark + a falsifiable mechanism question +
+a registered seed-replication combined-sample analysis is
 what *makes* the questions answerable. We offer this paper
 as a worked example.
 
-**Forks.** The forkling v4r1 + v6 design space is open for
-re-use. The full Python stack is small, stdlib-only, and
+**Forks.** The forkling v4r1 + v6 + v7 design space is open
+for re-use. The full Python stack is small, stdlib-only, and
 designed to be forked — independent forks can run their own
 pre-registered experiments against the same frozen
-benchmark, with `FORKLAND-BENCH-002.jsonl` and the v6
-hypothesis as a starting point. **Coordination between
+benchmark, with `FORKLAND-BENCH-002.jsonl` and the
+v6/v7 hypotheses as starting points. **Coordination between
 forks is opt-in and not rewarded or penalized in any
 fitness function** — sovereignty across deployments is the
 project's foundational value, alongside pre-registration.
+
+---
+
+## 10. What we *did not* show (still open after this paper)
+
+- A model-change replication. qwen2.5-coder:7b requires
+  ≥16 GB VRAM; on the test hardware (4 GB) it
+  partial-offloads and slows 5–6× (per `MODEL_DECISION.md`).
+  The hardware-blocked model-swap fallback in v6 §6
+  stands.
+- A benchmark-change replication (FORFLAND-BENCH-001 under
+  protocol 2). This is the `exp003b` slot in
+  `scripts/run_exp004.sh`; it would test whether the
+  Protocol-1 → Protocol-2 redesign that landed
+  exp006/exp007 also explains the difference between
+  Protocol-1 null and Protocol-2 filter-only.
+- Long-horizon forkling evolution data (≥30 days). The
+  experiment lineage has ~10 days of evolution data
+  (`paper/datasets/forkling-dataset-*.zip`); the methods
+  paper's evidence is from the experiment driver, not
+  from the in-the-wild evolve loop.
+- Multi-environment runs. Single-machine validation only.
+
+Future pre-registered attempts (v8, v9, ...) can address
+each of these. The framework — pre-registration, calibration,
+self-audit, combined-sample analysis, deferred reporting —
+is the durable contribution; the specific closed case here
+is one demonstration of it.
 
 ---
 

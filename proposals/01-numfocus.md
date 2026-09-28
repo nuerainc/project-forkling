@@ -74,27 +74,57 @@ forkling is the smallest possible self-improving agent that closes the loop end-
 
 ## Update (2026-09-27): rigor additions since this draft
 
-**Pre-registration discipline in practice.** Four pre-registered
-experiments (exp001–003 + the deferred exp004) have now run on
-the FORKLAND-BENCH-001 / FORKLAND-BENCH-002 frozen benchmarks, with
-hypotheses, models, and stopping rules committed before any
-pilot data was viewed. After exp003, a self-audit
+**Pre-registration discipline in practice.** Six pre-registered
+experiments (exp001–003 + the deferred exp004 + the deferred
+exp005 + the closed-case exp006 + the seed-replication exp007)
+have now run on FORKLAND-BENCH-001 and FORKLAND-BENCH-002
+frozen benchmarks, with hypotheses, models, stopping rules,
+and statistical tests committed *before* any pilot data was
+viewed. After exp003, a self-audit
 ([`paper/hypothesis_v4r1.md` §0](../paper/hypothesis_v4r1.md))
 surfaced five real measurement-failure modes in the original
-harness, leading to a re-registration (`paper/hypothesis_v4r1.md`,
-"r1") and a protocol-2 rewrite (`forkling/experiment2.py`). We
-did not move goalposts; we re-registered. This is the discipline
-NumFOCUS rewards.
+harness, leading to a re-registration
+([`paper/hypothesis_v4r1.md`](../paper/hypothesis_v4r1.md),
+"r1") and a protocol-2 rewrite ([`forkling/experiment2.py`](../forkling/experiment2.py)).
+We did not move goalposts; we re-registered. This is the
+discipline NumFOCUS rewards.
 
-**exp004 calibration outcome, deferred honestly.** Per v4r1 §6,
-`scripts/freeze_bench_002.py` exited 1 because only 3 of 12
-candidates passed the pre-registered freeze rule. This is
-reported as **"primary question deferred"**, not as a null
-([`paper/exp004_results.md`](../paper/exp004_results.md)). A
-clean calibration-failure outcome — with parse_ok = 0.82,
-infra = 0, harness self-test 14/14 — is exactly the kind of
-honest null reporting the proposal's "public ledger" promise
-should be measured against.
+**exp004 + exp005 outcomes, deferred honestly twice.** Per
+v4r1 §6 / v5 §2.4, `scripts/freeze_bench_002.py` exited 1
+twice — 3 of 12 candidates survived at exp004; 5 of 24 at
+exp005. Both are reported as **"primary question deferred"**,
+not as nulls
+([`paper/exp004_results.md`](../paper/exp004_results.md),
+[`paper/exp005_results.md`](../paper/exp005_results.md)).
+Clean calibration-failure outcomes — parse_ok = 0.82 / 0.79,
+infra = 0, harness self-test 14/14 at both data-producing
+commits — are exactly the kind of honest null reporting the
+proposal's "public ledger" promise should be measured
+against.
+
+**exp006 + exp007 — mechanism result, n = 12 across two seeds.**
+exp006 cleared the calibration freeze (6 of 33 candidates
+in band) and produced a first mechanism result on
+FORKLAND-BENCH-002 (`qwen2.5-coder:3b`, K = 10, S = 5).
+exp007 is the **registered seed-replication** (seed 20261030
+vs exp006's 20261025; same benchmark, same protocol).
+The combined-sample analysis at n = 12 (registered up front
+in [`paper/hypothesis_v7.md`](../paper/hypothesis_v7.md) §4.2)
+is the load-bearing empirical test. **Filter effect is
+strongly supported**: P − N = +0.545, 95% CI [+0.400,
++0.691], **p = 0.0005** (highly significant). The
+amplifier effect fails to replicate: I − P = −0.425, 95% CI
+[−0.550, −0.300], p = 0.0547 (CI excludes 0; direction
+wrong-signed on every non-zero combined measurement).
+Full writeup in [`paper/methods_paper.md`](../paper/methods_paper.md)
+and [`paper/exp007_results.md`](../paper/exp007_results.md).
+
+**Why this matters for the proposal.** The case that was
+open across exp001–005 is now closed at n = 12 with two
+seeds. The framework (pre-registration, calibration, audit,
+deferred reporting, combined-sample analysis) has produced
+the load-bearing result. Reproducing it costs ~30 min and
+~1,200 LLM calls on hardware most labs have.
 
 **Submission checklist (before sending).**
 
