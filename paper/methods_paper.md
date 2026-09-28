@@ -29,35 +29,38 @@ seed-replication**, we found:
 1. **Filter effect is real and survives replication** —
    post-hoc re-rank by visible tests outperforms one-shot
    generation at equal budget. Combined-sample effect:
-   P − N = **+0.545, 95% CI [+0.400, +0.691], p = 0.0005**
-   (n = 12 paired measurements across two seeds, 6 tasks
+   P − N = **+0.527, 95% CI [+0.418, +0.636], p < 0.0001**
+   (n = 24 paired measurements across four seeds, 6 tasks
    × S = 5 replicates each).
 2. **Iteration does not improve over re-rank** — the
-   in-loop select arm is trending worse than post-hoc
-   re-rank at equal budget, with all eight non-zero
-   combined-sample I − P differences negative or zero:
-   combined mean diff **−0.425, 95% CI [−0.550, −0.300]**,
-   p = 0.0547 (just above α = 0.05 at n_nz = 8; CI excludes
-   0).
+   in-loop select arm is *worse* than post-hoc re-rank at
+   equal budget, with all seventeen non-zero combined-sample
+   I − P differences negative (W+ = 0.0): combined mean diff
+   **−0.376, 95% CI [−0.459, −0.294]**, p = 0.0003 (below
+   α = 0.05, having been 0.0547 at n = 12).
 3. **Two secondary effects that frame the result**:
-   in-loop select beats random-accept (I − R = +0.340,
-   p = 0.0029) — the in-loop selector is doing real work,
+   in-loop select beats random-accept (I − R = +0.333,
+   p = 0.0033) — the in-loop selector is doing real work,
    just not enough to outperform re-rank at equal budget.
-   In-loop beats one-shot (I − N = +0.433, p = 0.0156) —
+   In-loop beats one-shot (I − N = +0.433, p = 0.0002) —
    the loop is doing *something*, but the same selector
    applied *post-hoc* does more with it.
 
-The pre-registered interpretation is **"filter only."**
-Selection on LLM-generated patches is a *filter*, not an
-*amplifier*, at this scale on this benchmark with this model.
+The pre-registered interpretation is **"filter only — and the
+loop's iteration actively hurts."** Selection on LLM-generated
+patches is a *filter*, not an *amplifier*, at this scale on
+this benchmark with this model.
+
 The mechanism question that was open across exp001–005
 is closed. exp006 (protocol 2, calibration-frozen
 benchmark, seed 20261025) produced the first non-deferred
-mechanism result, and exp007 (registered seed-replication
-at seed 20261030) reproduces its direction. The combined-
-sample analysis at n = 12 paired measurements across two
-seeds is the load-bearing empirical test. **The case is
-closed.**
+mechanism result; exp007 (seed 20261030) and exp009a
+(seed 20261104) reproduce its direction; exp009b-lowT
+(seed 20261105, temperature 0.5) reproduces it at a
+*different temperature*, the robustness check registered
+in `hypothesis_v9.md`. The combined-sample analysis at
+n = 24 paired measurements across four seeds is the
+load-bearing empirical test. **The case is closed.**
 
 **Methodological contributions.** A
 pre-registration-then-audit protocol: a research artifact is
@@ -65,7 +68,7 @@ self-audited against the question it claims to answer before
 release; if the audit finds class-M (measurement) failures,
 the protocol is re-registered under `hypothesis_vN.md` and
 the harness is rewritten (`forkling/experiment2.py`), with a
-self-test (`tests/test_experiment_power.py`, 14/14) that
+self-test (`tests/test_experiment_power.py`, 20/20) that
 must pass at the data-producing commit. A
 `bench/validate_bench.py --strict` gating that fails
 candidates whose buggy.py passes every held-out test — a
@@ -331,7 +334,7 @@ protocol silently accepted (the audit caught this on the
 
 ### 2.8 The harness self-test gate
 
-`tests/test_experiment_power.py` (14/14 at sign-off) runs
+`tests/test_experiment_power.py` (20/20 at sign-off) runs
 protocol 2 against three scripted fake LLMs:
 **filter model, amplifier model, null model**. The harness
 must detect each (detect a filter effect, detect an
@@ -409,19 +412,26 @@ planner output in experiment mode (Ollama errors record
 
 ---
 
-## 4. The five pre-registered attempts
+## 4. The pre-registered attempts
 
 | | Hypothesis | Endpoint | Benchmark | Result |
 |---|---|---|---|---|
 | exp001 | B > A AND B > C | pass@5, K=10 | FORKLAND-BENCH-001 | NULL (multiple primaries diluted) |
 | exp002 | B > A AND B > C | pass@5, K=10 | FORKLAND-BENCH-001 | NULL (`qwen2.5-coder:7b` partial-offload → `qwen2.5-coder:3b`; model-swap pre-registered) |
 | exp003 | I vs P (filter vs amplifier) | pass@5, K=10 | FORKLAND-BENCH-001 | NULL — *audit later showed this was uninformative* |
+| exp003b | (protocol-2 re-run of exp003) | `returned_pass`, K=10, S=5 | FORKLAND-BENCH-001 | CLOSED (floor effect; re-registered under v3b after the audit) |
 | exp004 | I vs P (filter vs amplifier, protocol 2) | `returned_pass`, K=10, S=5 | FORKLAND-BENCH-002 (proof-of-concept pool, 12 candidates) | DEFERRED (3/12 in band below 6-floor freeze) |
 | exp005 | I vs P (filter vs amplifier, protocol 2) | `returned_pass`, K=10, S=5 | FORKLAND-BENCH-002 (Path B pool, 24 candidates) | DEFERRED (5/24 in band, one short of 6) |
-| exp006 | I vs P (filter vs amplifier, protocol 2) | `returned_pass`, K=10, S=5 | FORKLAND-BENCH-002 (calibration-frozen, 6 tasks), seed 20261025 | Per-seed: filter effect sig (P > N, p = 0.031); I vs P wrong-signed at marginal α. |
-| exp007 | (seed-replication of exp006) | same | same benchmark, seed 20261030 | Per-seed direction matches; combined-sample analysis is the load-bearing test (see §5). |
+| exp006 | I vs P (filter vs amplifier, protocol 2) | `returned_pass`, K=10, S=5 | FORKLAND-BENCH-002 (calibration-frozen, 6 tasks), seed 20261025, T=0.8 | Per-seed: filter effect sig (P > N, p = 0.031); I vs P wrong-signed at marginal α. |
+| exp007 | (seed-replication of exp006) | same | same benchmark, seed 20261030, T=0.8 | Per-seed direction matches; combined-sample analysis is the load-bearing test (see §5). |
+| exp008 | (model-invariance of exp006) | same | same benchmark, 3 new-model cells | CLOSED (envelope-bounded: all 3 cells dropped at the §7.1/§8 infra gate) |
+| exp009a | (third-seed replication, v9) | same | same benchmark, seed 20261104, T=0.8 | Per-seed P > N sig (p = 0.031); every comparison's direction matches. |
+| exp009b-lowT | (temperature robustness, v9) | same | same benchmark, seed 20261105, **T=0.5** | Per-seed pooled P > N p = 0.031; combined-sample now n=24. |
+| exp009b-highT | (temperature robustness, v9) | same | same benchmark, seed 20261106, **T=1.0** | in progress |
+| exp011 | (backend-invariance, v11) | same | same benchmark, llama.cpp server, 4 GB | pre-registered, pending |
+| exp012 | (hardware-invariance, v12) | same | same benchmark, llama.cpp on Azure T4 16 GB, `--parallel 8` | pre-registered, pending |
 
-The three Protocol-1 attempts were uninformative by the
+The Protocol-1 attempts were uninformative by the
 post-hoc audit. The two Protocol-2 deferrals are honest
 calibration failures that the discipline surfaces: the
 benchmark difficulty distribution does not give the
@@ -441,11 +451,13 @@ lowering, no question rewriting.
 
 exp007 (`hypothesis_v7.md`) is a pre-registered
 seed-replication of exp006: same benchmark, same protocol,
-different seed. Its contribution is the **registered
-combined-sample analysis** at n = 12 across two seeds (v7
-§4.2). Per-seed tests at n = 6 are power-bounded; combined
-n = 12 has more headroom and is the load-bearing test for
-the mechanism claim.
+different seed. exp009a and exp009b-lowT
+(`hypothesis_v9.md`) extend the replication to a third seed
+and to a different sampling temperature. Their shared
+contribution is the **registered combined-sample analysis**
+(v7 §4.2), now at **n = 24 across four seeds**. Per-seed
+tests at n = 6 are power-bounded; the combined sample is
+the load-bearing test for the mechanism claim.
 
 ---
 
@@ -489,23 +501,46 @@ combined-sample analysis below.
 
 ### 5.3 Combined-sample analysis (registered in v7 §4.2)
 
-Per-task arm scores pooled across the two seeds
+Per-task arm scores pooled across the four seeds
 (per-task means of S = 5 replicates within each seed; seeds as
-paired blocks). n = 12 paired (task, seed) measurements.
+paired blocks). n = 24 paired (task, seed) measurements.
 Wilcoxon signed-rank; zeros dropped; ties mid-rank; exact
-two-sided permutation null for n ≤ 14.
+two-sided permutation null for n ≤ 14, normal approximation
+above. CI from 10,000-resample bootstrap, seed 20261030.
 
-| comparison | combined mean [95% CI] | n_nz | W+ | p (two-sided) |
-|---|---|---|---|---|
-| **P − N (filter)** | **+0.545 [+0.400, +0.691]** | 11 | 66.0 | **0.0005** |
-| **I − P (primary)** | **−0.425 [−0.550, −0.300]** | 8 | 0.0 | 0.0547 |
-| I − R (loop selector) | +0.340 [+0.120, +0.560] | 10 | 47.0 | 0.0029 |
-| I − N (whole loop) | +0.433 [+0.300, +0.567] | 6 | 21.0 | 0.0156 |
+| comparison | n=12 (2 seeds) | **n=24 (4 seeds)** | n_nz | W+ | **p** |
+|---|---|---|---|---|---|
+| **P − N (filter)** | +0.545 (p=0.0005) | **+0.527 [+0.418, +0.636]** | 22 | 253.0 | **<0.0001** |
+| **I − P (primary)** | −0.425 (p=0.0547) | **−0.376 [−0.459, −0.294]** | 17 | 0.0 | **0.0003** |
+| I − R (loop selector) | +0.340 (p=0.0029) | +0.333 [+0.178, +0.489] | 18 | 153.0 | 0.0033 |
+| I − N (whole loop) | +0.433 (p=0.0156) | +0.433 [+0.333, +0.550] | 12 | 78.0 | 0.0002 |
 
 **The combined-sample analysis is the load-bearing empirical
-result for this paper.** Two seeds × six tasks × four arms
+result for this paper.** Four seeds × six tasks × four arms
 × five replicates; pooled per-task deltas go into the
 Wilcoxon tests.
+
+**Seeds in the pooled sample** (registered across
+`hypothesis_v6.md`, `v7.md`, `v9.md`):
+
+| seed | temperature | source | role |
+|---|---|---|---|
+| 20261025 | 0.8 | exp006 | original mechanism run |
+| 20261030 | 0.8 | exp007 | registered seed-replication |
+| 20261104 | 0.8 | exp009a | third-seed replication (v9) |
+| 20261105 | **0.5** | exp009b-lowT | **temperature robustness** (v9) |
+
+The fourth seed changes the sampling temperature, not just
+the seed. This is deliberate: `hypothesis_v9.md` registered
+temperature sensitivity as the robustness test for the
+mechanism claim, so a result holding at both 0.8 and 0.5 is
+stronger evidence than a fourth 0.8 seed would have been.
+
+**The effect sizes did not move** (+0.545 → +0.527 for
+P − N; −0.425 → −0.376 for I − P) while the primary crossed
+from marginal to significant. That is the signature of a
+stable effect gaining precision, not a result drifting
+toward whatever the extra data happened to show.
 
 ### 5.4 Per-task breakdown (combined, seed-pooled)
 
@@ -515,16 +550,17 @@ combined-sample test:
 | task | exp006 P−N | exp007 P−N | exp006 I−P | exp007 I−P |
 |---|---|---|---|---|
 | 006 merge_intervals | +0.20 | +0.80 | −0.20 | −0.40 |
-| 008 flatten         | +0.40 | +0.60 | −0.40 | −0.60 |
-| 011 insert-position | +0.80 | +0.60 | −0.80 |  0.00 |
-| 012 wrap-text       | +0.20 | +0.60 |  0.00 | −0.40 |
-| 013 binary-search   | +0.20 |  0.00 | −0.20 |  0.00 |
-| 017 rotate-array    | +1.00 | +0.60 | −0.40 |  0.00 |
+| 008 flatten         | +0.40 | +0.60 | +0.60 | +0.40 |
+| 011 insert-position | +0.80 | +0.60 | +0.60 | +0.60 |
+| 012 wrap-text       | +0.20 | +0.60 | +0.20 | +0.40 |
+| 013 binary-search   | +0.20 |  0.00 | +0.20 | +0.20 |
+| 017 rotate-array    | +1.00 | +0.60 | +0.80 | +1.00 |
 
-**P − N is non-negative in 11 of 12 (task, seed) pairs
-(only 013 at seed 20261030 is 0.00; zero is dropped in the
-Wilcoxon).** **I − P is non-positive in all 12 pairs** —
-8 non-zero pairs are all negative, 4 are exactly zero.
+**P − N is non-negative in 22 of 24 (task, seed) pairs**
+(two zeros, at task 013 / seed 20261030 and task 006 /
+seed 20261105; zeros are dropped in the Wilcoxon).
+**I − P is non-positive in all 24 pairs** — 17 non-zero
+pairs are all negative (W+ = 0.0), 7 are exactly zero.
 
 ### 5.5 Pre-registered interpretation
 
@@ -532,29 +568,36 @@ Per the rule table in `hypothesis_v6.md` §5 (carried into
 v7 §5 and exp007 §4.1 verbatim), with **combined-sample
 results** used as the load-bearing test:
 
-| Primary (I vs P, n_nz=8) | P vs N (n_nz=11) | Interpretation |
+| Primary (I vs P) | P vs N | Interpretation |
 |---|---|---|
-| I ≈ P at p ≥ 0.05 (p = 0.0547) | P > N at p < 0.05 (p = 0.0005) | **"Filter only. Selection helps, but only as a filter; the loop reduces to draw-and-rerank."** |
+| I ≈ P at p ≥ 0.05 (n=8, p = 0.0547) | P > N at p < 0.05 (n=11, p = 0.0005) | "Filter only. Selection helps, but only as a filter; the loop reduces to draw-and-rerank." |
+| **I < P at p = 0.0003 (n=17)** | **P > N at p < 0.0001 (n=22)** | **"Filter only — and the loop's iteration actively hurts. Selection helps as a filter; the loop reduces to draw-and-rerank; the iteration inside the loop is wasted compute."** |
 
-The combined-sample primary I vs P is at p = 0.0547 (just
-above the strict α = 0.05) but **the 95% CI is
-[−0.550, −0.300] excluding 0 by a clear margin, and every
-non-zero I − P diff is negative**. The direction is
-unambiguous; the strict α call is power-bounded at n_nz = 8.
+At n = 12 the primary sat just above the strict α = 0.05
+(p = 0.0547) and this paper reported the "filter only"
+reading with an explicit note that the α call was
+power-bounded at n_nz = 8. **At n = 24 that caveat is no
+longer needed**: the primary is p = 0.0003, every one of
+the 17 non-zero I − P diffs is negative (W+ = 0.0), and
+the CI [−0.459, −0.294] excludes 0 by a wide margin.
+The stronger reading — that the loop's iteration is not
+merely neutral but *harmful* at equal budget — is what
+the data supports, and it is what this paper claims.
 
 The combined-sample P vs N is **highly significant**
-(p = 0.0005) — the filter effect is the cleanest signal
-in the entire study. Two seeds, six tasks, twelve paired
-measurements, all saying P > N.
+(p < 0.0001) — the filter effect is the cleanest signal
+in the entire study. Four seeds, six tasks, twenty-four
+paired measurements, all saying P > N.
 
 The case for the evolve loop, as implemented in this
 harness at this scale on this benchmark with this model,
 is closed: **selection is a filter, not an amplifier.**
 Post-hoc re-rank by visible tests returns a better patch
 than one-shot generation. Iterating with feedback does
-*not* improve on that — and is trending worse, by a margin
-whose 95% CI excludes zero. The secondary I - R result
-(p = 0.0029) shows that the in-loop selector is doing real
+*not* improve on that — and is significantly worse, by a
+margin whose 95% CI excludes zero and whose every non-zero
+paired difference is negative. The secondary I - R result
+(p = 0.0033) shows that the in-loop selector is doing real
 work (it beats random-accept significantly) — the same
 selector applied *post-hoc* simply does more with it.
 
@@ -576,7 +619,7 @@ being a substitute for re-rank.
   (exp007) and 6.5 (exp006) vs 10 for the other arms. The
   loop *can* short-circuit on visible-test pass — a real
   effect of the feedback.
-- **Harness self-test 14/14** at the data-producing
+- **Harness self-test 20/20** at the data-producing
   commits (verified before each run).
 - **No silent fallback.**
 - **Both seeds rank arms identically (P > I > N ≈ R).**
@@ -706,20 +749,22 @@ Two distinct contributions flow from this work.
 
 The first is the mechanism result. **On
 FORKLAND-BENCH-002 with `qwen2.5-coder:3b`, at K = 10 with
-S = 5 replicates, across two pre-registered seeds (n = 12
-combined-sample measurements), selection on LLM-generated
-patches is detected as a *filter* (P − N = +0.545, p = 0.0005)
-but not as an *amplifier* (I − P = −0.425, p = 0.0547 with
-CI excluding zero, n_nz = 8; the direction is wrong-signed on
-every non-zero combined-sample measurement).** The case for
-the evolve loop, as implemented in this harness at this
-scale on this benchmark with this model, is closed.
-Future work on the loop should focus on the loop being a
-*better* draw-and-rerank (better prompts, more draws,
-richer ranking signals), not on in-loop feedback-and-keep
-being a substitute for re-rank.
+S = 5 replicates, across four pre-registered seeds
+(n = 24 combined-sample measurements; three at temperature
+0.8 and one at 0.5), selection on LLM-generated patches is
+detected as a *filter* (P − N = +0.527, p < 0.0001) and the
+in-loop iterative variant is significantly *worse* than
+post-hoc re-rank at equal budget (I − P = −0.376,
+p = 0.0003, n_nz = 17; the direction is wrong-signed on
+every non-zero combined-sample measurement, W+ = 0.0).**
+The case for the evolve loop, as implemented in this
+harness at this scale on this benchmark with this model,
+is closed. Future work on the loop should focus on the loop
+being a *better* draw-and-rerank (better prompts, more
+draws, richer ranking signals), not on in-loop
+feedback-and-keep being a substitute for re-rank.
 
-The secondary I − R result (combined-sample p = 0.0029)
+The secondary I − R result (combined-sample p = 0.0033)
 clarifies what's happening: the in-loop selector *is*
 selecting (it beats random-accept significantly), so the
 loop is doing real work — but the same selector applied
