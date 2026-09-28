@@ -32,3 +32,20 @@ env/
 
 # Dogfood: agent working area (kept out of repo on purpose)
 work/
+
+# Checkpoint files (intermediate experiment scratch)
+*.ckpt.jsonl
+
+# Detached-runner runtime metadata
+*.heartbeat
+*.pid
+.forkling/
+
+# Stray diagnostic / one-off helper scripts left over from sessions
+check_*.py
+diag.py
+do_rename.py
+set_priority*.py
+set_priority*.ps1
+$null
+inception_triggers/processed/
