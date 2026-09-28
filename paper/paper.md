@@ -77,6 +77,7 @@ FORKLAND-BENCH-002 (exp004–exp007):
 | exp005 (`paper/hypothesis_v5.md`)              | protocol 2 | returned_pass, K=10, S=5 | FORKLAND-BENCH-002 (24 candidates; Path B) | DEFERRED (5/24 in band, one short of 6) |
 | exp006 (`paper/hypothesis_v6.md`)              | protocol 2 | returned_pass, K=10, S=5 | FORKLAND-BENCH-002 (33 candidates, 6 frozen) | **MECHANISM RESULT — filter only (per-seed)** |
 | exp007 (`paper/hypothesis_v7.md`; seed-replication of exp006) | protocol 2 | same | same frozen benchmark | **REPRODUCED DIRECTIONALLY** |
+| exp008 (`paper/hypothesis_v8.md`; model-invariance replication) | protocol 2 | returned_pass, K=10, S=5 | FORKLAND-BENCH-002 (frozen) | **ALL 3 NEW-MODEL CELLS DROPPED at §7.1/§8 gate** (qwen3:4b infra=1.00; llama3.2:3b parse_ok=0.47; llama3.2:1b parse_ok=0.07) |
 
 **Headline (combined-sample n = 12 across two seeds, registered in
 v7 §4.2):**

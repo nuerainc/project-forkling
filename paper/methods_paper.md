@@ -780,7 +780,19 @@ project's foundational value, alongside pre-registration.
   ≥16 GB VRAM; on the test hardware (4 GB) it
   partial-offloads and slows 5–6× (per `MODEL_DECISION.md`).
   The hardware-blocked model-swap fallback in v6 §6
-  stands.
+  stands. **Now closed as envelope-bounded (exp008):**
+  all three small-model swaps attempted on 4 GB VRAM
+  failed at the pre-registered parse-ok and infra gates
+  (qwen3:4b infra=1.00 due to its thinking capability
+  timing out per call; llama3.2:3b parse_ok=0.47 below
+  the §7.1 0.5 threshold; llama3.2:1b parse_ok=0.07
+  below). On this hardware regime, qwen2.5-coder:3b is
+  the only model that produces parseable output reliably
+  enough to run the protocol end-to-end. See
+  [`paper/exp008_results.md`](exp008_results.md). Future
+  model-change work requires hardware ≥16 GB VRAM (to
+  run qwen2.5-coder:7b per v6 §6) or a new pre-
+  registration with relaxed parse-ok / infra gates.
 - A benchmark-change replication (FORKLAND-BENCH-001 under
   protocol 2). **Now closed as exp003b** —
   `paper/exp003b_results.md`. Within-benchmark re-run of
