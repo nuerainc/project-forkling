@@ -64,32 +64,54 @@ Most recent milestones:
 
 ### 1.5 Controlled experiments
 
-Three pre-registered experiments have run on FORKLAND-BENCH-001
-(10 one-line Python bug fixes, K=10 attempts per task per arm).
-All three are **null** under their pre-registered tests:
+Six pre-registered experiments have now run. Three protocol-1
+attempts on FORKLAND-BENCH-001 (all null) and three protocol-2
+attempts on the calibrated FORKLAND-BENCH-002:
 
-| Experiment | Question | Primary result |
-|---|---|---|
-| exp001 (`paper/hypothesis.md`) | Does in-loop selection beat one-shot and random acceptance? | NULL |
-| exp002 (`paper/hypothesis_v2.md`) | Same, with `qwen2.5-coder:3b` and a tighter prompt | NULL |
-| exp003 (`paper/hypothesis_v3.md`) | Is selection a filter or an amplifier (in-loop I vs post-hoc P)? | NULL: pass@5 I=0.80 vs P=0.90, U=45, p=0.71 |
+| Experiment | Pre-reg | Endpoint | Benchmark | Result |
+|---|---|---|---|---|
+| exp001 (`paper/hypothesis.md`)                 | protocol 1 | pass@5, K=10 | FORKLAND-BENCH-001 | NULL |
+| exp002 (`paper/hypothesis_v2.md`)              | protocol 1 | pass@5, K=10 | FORKLAND-BENCH-001 | NULL |
+| exp003 (`paper/hypothesis_v3.md`)              | protocol 1 | pass@5, K=10 | FORKLAND-BENCH-001 | NULL *(audit found this was uninformative)* |
+| exp004 (`paper/hypothesis_v4r1.md`)            | protocol 2 | returned_pass, K=10, S=5 | FORKLAND-BENCH-002 (12 candidates) | DEFERRED (3/12 in band below 6-floor freeze) |
+| exp005 (`paper/hypothesis_v5.md`)              | protocol 2 | returned_pass, K=10, S=5 | FORKLAND-BENCH-002 (24 candidates; Path B) | DEFERRED (5/24 in band, one short of 6) |
+| exp006 (`paper/hypothesis_v6.md`)              | protocol 2 | returned_pass, K=10, S=5 | FORKLAND-BENCH-002 (33 candidates, 6 frozen) | **MECHANISM RESULT — filter only (per-seed)** |
+| exp007 (`paper/hypothesis_v7.md`; seed-replication of exp006) | protocol 2 | same | same frozen benchmark | **REPRODUCED DIRECTIONALLY** |
 
-A post-hoc audit of the harness (`paper/exp003_results.md`, section
-"Validity caveat") found that these nulls cannot be read as evidence
-about selection. Two properties of the harness, not of the model,
-decide the outcome: the pass@k endpoint counts any held-out pass
-among the first k draws whether or not the arm selected it, so it is
-blind to post-hoc re-ranking by construction; and the in-loop arms
-always prompt with the original `buggy.py` while applying patches to
-the evolved source, so after the first accepted patch most later
-patches no longer apply (in-loop parse_ok falls from 0.9 at attempt 0
-to about 0.3 afterwards). exp003's post-hoc re-ranker also sorted
-candidates the wrong way and committed the worst one. The benchmark
-is also near ceiling (arm N pass@5 = 0.90). A fixed harness
-(`forkling/experiment2.py`, protocol 2) must pass a self-test with
-scripted models before use. exp003b (`paper/hypothesis_v3b.md`) reruns
-exp003 on it, and exp004 is re-registered in
-`paper/hypothesis_v4r1.md` on a harder, calibrated benchmark.
+**Headline (combined-sample n = 12 across two seeds, registered in
+v7 §4.2):**
+
+- **Filter effect is real and significant.** P − N = +0.545,
+  95% CI [+0.400, +0.691], **p = 0.0005** (highly
+  significant; 11 of 12 (task, seed) pairs positive).
+- **Amplifier effect is not supported.** I − P = −0.425,
+  95% CI [−0.550, −0.300], p = 0.0547 (CI excludes 0;
+  8 of 8 non-zero pairs negative; wrong-signed).
+- **I > R (loop selector beats random):** +0.340, p = 0.003.
+- **I > N (loop beats one-shot):** +0.433, p = 0.016.
+
+**Pre-registered interpretation: "filter only."** Selection on
+LLM-generated patches is a *filter*, not an *amplifier*, at this
+scale on this benchmark with this model. **The mechanism case
+that was open across exp001–005 is closed.**
+
+A post-hoc audit of the protocol-1 harness (`paper/exp003_results.md`,
+section "Validity caveat") found **five real measurement-failure
+modes (M1–M5)**: the pass@k endpoint is blind to post-hoc
+re-ranking; the in-loop arms prompt with the original `buggy.py`
+while applying patches to the evolved source; the re-ranker was
+implemented as boolean visible_pass so partial fixes (visible 1/2)
+tied wrong-but-parseable fixes (visible 0/2); sub-seeds came from
+`hash((arm, task.id))` which Python randomizes per process unless
+`PYTHONHASHSEED` is set; `mann_whitney_u` was implemented as an
+unpaired rank-sum test (correct test: paired Wilcoxon signed-rank).
+The audit led to a Protocol 2 rewrite (`forkling/experiment2.py`),
+a harness self-test (`tests/test_experiment_power.py`, 14/14)
+that must pass at the data-producing commit, and a strict bench
+validation that fails candidates whose `buggy.py` passes every
+held-out test. The two deferrals under Protocol 2 are *honest*
+calibration failures (not nulls) — the freeze rule does its job.
+Full writeup at [`paper/methods_paper.md`](methods_paper.md) §5.
 
 ## 2. Substrate thesis (vs DGM)
 
