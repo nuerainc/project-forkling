@@ -1,0 +1,19 @@
+# Force LF for shell scripts so scp'd files don't carry Windows CRLF
+# into a Linux VM (bash chokes on `\r` in shebang).
+*.sh text eol=lf
+
+# Python: keep LF (PEP 8 says use LF; we don't have Windows users
+# editing on Notepad).
+*.py text eol=lf
+
+# Markdown: LF, but allow CRLF on Windows checkouts without warning.
+*.md text eol=lf
+
+# Explicitly mark binary files Git might otherwise text-detect.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.pdf binary
+*.zip binary
+*.gguf binary
