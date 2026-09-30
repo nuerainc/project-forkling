@@ -1,10 +1,10 @@
 {
   "pid": 2711,
   "started_at": 1790751016.28471,
-  "attempt_count": 1,
-  "committed_count": 0,
+  "attempt_count": 5,
+  "committed_count": 1,
   "rolled_back_count": 0,
-  "noop_count": 1,
+  "noop_count": 4,
   "last_target": "/home/runner/work/project-forkling/project-forkling/docs/SANDBOX_A_B.md",
   "last_outcome": "noop",
   "repo": "/home/runner/work/project-forkling/project-forkling"
